@@ -2,25 +2,32 @@ from xml.etree import ElementTree as ET
 
 # TODO: function that reads all XML files from input directory
 
-tree = ET.parse("data/19105-data.xml")
+with open('data/19105-data.xml', 'rb') as xml_file:
+    tree = ET.parse(xml_file)
+
 root = tree.getroot()
-for child in root:
-    print(child.tag, child.attrib)
-print('-------')
 
 # nach Tagesordnungspunkten in Sitzungsverlauf suchen
-for child in root[1]:
-    if not 'top-id' in child.attrib:
+comment_list = []
+for topic in root[1]:
+    if not 'top-id' in topic.attrib:
         continue
-    elif child.attrib['top-id'] == 'Geschaeftsordnung':
+    elif topic.attrib['top-id'] == 'Geschaeftsordnung':
         continue
+    #print(topic.tag, topic.attrib)
     
-    print(child.tag, child.attrib)
-    
-    for subchild in child:
-        if subchild.tag != 'rede':
+    for rede in topic:
+        if rede.tag != 'rede':
             continue
-        print(subchild.tag, subchild.attrib)
+        #print(rede.tag, rede.attrib)
+        
+        for kommentar in rede:
+            if kommentar.tag == 'kommentar':
+                #print(kommentar.tag, kommentar.attrib)
+                k_text = kommentar.text.strip('()').replace(u'\xa0', u' ')
+                comment_list.append(k_text)
+                    
+print(comment_list)
 
 if __name__ == "__main__":
     pass
