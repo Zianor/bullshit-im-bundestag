@@ -25,6 +25,11 @@ trees = trees[0:2]
 for xml_tree in trees:
     root = xml_tree.getroot()
 
+    date = ''
+    for datum in root.iter('datum'):
+        date = datum.attrib['date']
+
+
     # extract data about speeces from XML protocol
 
     comment_list = []
@@ -69,7 +74,7 @@ for xml_tree in trees:
                         raise ValueError('Comment was found but no current speaker is set!')
                 
                     kommentar = subelement.text.strip('()').replace(u'\xa0', u' ')
-                    comment_list.append({'redner': current_speaker, 'kommentar': kommentar})
+                    comment_list.append({'redner': current_speaker, 'kommentar': kommentar, 'date': date})
 
     comment_list_per_file.append(comment_list)
     print("Liste einer Datei:")
