@@ -37,7 +37,7 @@ for xml_tree in trees:
             continue
         for rede in topic.iter('rede'):
             # extract metainformation about speaker
-            current_speaker = ''
+            current_speaker = 'none' # e.g if speaker is announced
             for speaker in rede.iter('redner'):
                 meta_dict = {}
 
@@ -53,8 +53,6 @@ for xml_tree in trees:
             # extract content of comment
             for comments in rede.iter('kommentar'):
                 comment = comments.text.strip('()').replace(u'\xa0', u' ')
-                if current_speaker is None:
-                    raise ValueError('Comment was found but no current speaker is set!')
                 comment_list.append({'redner': current_speaker, 'kommentar': comment, 'date': date})
 
     comment_list_per_file.append(comment_list)
