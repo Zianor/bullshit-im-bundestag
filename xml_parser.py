@@ -25,56 +25,37 @@ trees = trees[0:2]
 for xml_tree in trees:
     root = xml_tree.getroot()
 
+    # extract date
     date = ''
     for datum in root.iter('datum'):
         date = datum.attrib['date']
 
-
-    # extract data about speeces from XML protocol
-
+    # extract data about speeches from XML protocol
     comment_list = []
-    for topic in root[1]:
-        if not 'top-id' in topic.attrib:
+    for topic in root.iter('tagesordnungspunkt'):
+        if topic.attrib['top-id'] == 'Geschaeftsordnung':
             continue
-        elif topic.attrib['top-id'] == 'Geschaeftsordnung':
-            continue
-        #print(topic.tag, topic.attrib)
-    
-        for rede in topic:
-            if rede.tag != 'rede':
-                continue
-            #print(rede.tag, rede.attrib)
-            #print(rede)
-        
+        for rede in topic.iter('rede'):
+            # extract metainformation about speaker
             current_speaker = ''
-        
-            for subelement in rede:
-            
-                # extract metainformation about speaker
-            
-                if subelement.tag == 'p' and subelement.attrib['klasse'] == 'redner':
-                    
-                    meta_dict = {}
-                    
-                    for speaker_tag in subelement.iter():
-                        if speaker_tag.tag == 'vorname':
-                            meta_dict['vorname'] = speaker_tag.text
-                        if speaker_tag.tag == 'nachname':
-                            meta_dict['nachname'] = speaker_tag.text
-                        if speaker_tag.tag == 'fraktion':
-                            meta_dict['fraktion'] = speaker_tag.text
-                            current_speaker = meta_dict['fraktion']
-                    
-                # extract content of comment
-            
-                if subelement.tag == 'kommentar':
-                    #print(kommentar.tag, kommentar.attrib)
-                
-                    if current_speaker is None:
-                        raise ValueError('Comment was found but no current speaker is set!')
-                
-                    kommentar = subelement.text.strip('()').replace(u'\xa0', u' ')
-                    comment_list.append({'redner': current_speaker, 'kommentar': kommentar, 'date': date})
+            for speaker in rede.iter('redner'):
+                meta_dict = {}
+
+                for speaker_tag in speaker.iter():
+                    if speaker_tag.tag == 'vorname':
+                        meta_dict['vorname'] = speaker_tag.text
+                    if speaker_tag.tag == 'nachname':
+                        meta_dict['nachname'] = speaker_tag.text
+                    if speaker_tag.tag == 'fraktion':
+                        meta_dict['fraktion'] = speaker_tag.text
+                        current_speaker = meta_dict['fraktion']
+
+            # extract content of comment
+            for comments in rede.iter('kommentar'):
+                comment = comments.text.strip('()').replace(u'\xa0', u' ')
+                if current_speaker is None:
+                    raise ValueError('Comment was found but no current speaker is set!')
+                comment_list.append({'redner': current_speaker, 'kommentar': comment, 'date': date})
 
     comment_list_per_file.append(comment_list)
     print("Liste einer Datei:")
