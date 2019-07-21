@@ -15,49 +15,46 @@ def get_xml_files():
     return xml_trees
 
 
-trees = get_xml_files()
+def get_data():
+    trees = get_xml_files()
 
-comment_list_per_file = []
-
-# TODO: remove after testing
-trees = trees[0:2]
-
-for xml_tree in trees:
-    root = xml_tree.getroot()
-
-    # extract date
-    date = ''
-    for datum in root.iter('datum'):
-        date = datum.attrib['date']
-
-    # extract data about speeches from XML protocol
     comment_list = []
-    for topic in root.iter('tagesordnungspunkt'):
-        if topic.attrib['top-id'] == 'Geschaeftsordnung':
-            continue
-        for rede in topic.iter('rede'):
-            # extract metainformation about speaker
-            current_speaker = 'none' # e.g if speaker is announced
-            for speaker in rede.iter('redner'):
-                meta_dict = {}
 
-                for speaker_tag in speaker.iter():
-                    if speaker_tag.tag == 'vorname':
-                        meta_dict['vorname'] = speaker_tag.text
-                    if speaker_tag.tag == 'nachname':
-                        meta_dict['nachname'] = speaker_tag.text
-                    if speaker_tag.tag == 'fraktion':
-                        meta_dict['fraktion'] = speaker_tag.text
-                        current_speaker = meta_dict['fraktion']
+    # TODO: remove after testing
+    trees = trees[0:2]
 
-            # extract content of comment
-            for comments in rede.iter('kommentar'):
-                comment = comments.text.strip('()').replace(u'\xa0', u' ')
-                comment_list.append({'redner': current_speaker, 'kommentar': comment, 'date': date})
+    for xml_tree in trees:
+        root = xml_tree.getroot()
 
-    comment_list_per_file.append(comment_list)
-    print("Liste einer Datei:")
-    print(comment_list)
+        # extract date
+        date = ''
+        for datum in root.iter('datum'):
+            date = datum.attrib['date']
+
+        # extract data about speeches from XML protocol
+        for topic in root.iter('tagesordnungspunkt'):
+            if topic.attrib['top-id'] == 'Geschaeftsordnung':
+                continue
+            for rede in topic.iter('rede'):
+                # extract metainformation about speaker
+                current_speaker = 'none'  # e.g if speaker is announced
+                for speaker in rede.iter('redner'):
+                    meta_dict = {}
+
+                    for speaker_tag in speaker.iter():
+                        if speaker_tag.tag == 'vorname':
+                            meta_dict['vorname'] = speaker_tag.text
+                        if speaker_tag.tag == 'nachname':
+                            meta_dict['nachname'] = speaker_tag.text
+                        if speaker_tag.tag == 'fraktion':
+                            meta_dict['fraktion'] = speaker_tag.text
+                            current_speaker = meta_dict['fraktion']
+
+                # extract content of comment
+                for comments in rede.iter('kommentar'):
+                    comment = comments.text.strip('()').replace(u'\xa0', u' ')
+                    comment_list.append({'speaker': current_speaker, 'comment': comment, 'date': date})
+        return comment_list
 
 
 if __name__ == "__main__":
