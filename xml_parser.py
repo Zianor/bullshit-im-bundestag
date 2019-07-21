@@ -9,6 +9,7 @@ def get_xml_files():
         if file.endswith('.xml'):
             xml_files.append('data/' + file)
     xml_trees = list(xml_files)
+    
     for i in range(0, len(xml_files)):
         with open(xml_files[i], 'rb') as xml_file:
             xml_trees[i] = ET.parse(xml_file)
@@ -21,7 +22,7 @@ def get_data():
     comment_list = []
 
     # TODO: remove after testing
-    trees = trees[0:2]
+    #trees = trees[:]
 
     for xml_tree in trees:
         root = xml_tree.getroot()
@@ -53,8 +54,11 @@ def get_data():
                 # extract content of comment
                 for comments in rede.iter('kommentar'):
                     comment = comments.text.strip('()').replace(u'\xa0', u' ')
+                    
                     comment_list.append({'speaker': current_speaker, 'comment': comment, 'date': date})
         return comment_list
+    
+# TODO: serialization of comment_list
 
 
 if __name__ == "__main__":
