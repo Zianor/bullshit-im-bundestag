@@ -24,18 +24,14 @@ def get_data():
 
     # TODO: remove after testing
     trees = trees[:]
-    print(trees)
-    print(len(trees))
 
     for xml_tree in trees:
         root = xml_tree.getroot()
-        print('got here')
 
         # extract date
         date = ''
         for datum in root.iter('datum'):
             date = datum.attrib['date']
-            print(date)
 
         # extract data about speeches from XML protocol
         for topic in root.iter('tagesordnungspunkt'):
@@ -58,10 +54,7 @@ def get_data():
 
                 # extract content of comment
                 for comments in rede.iter('kommentar'):
-                    if comments == 'Beifall bei der SPD, der CDU/CSU, der FDP und dem BÜNDNIS 90/DIE GRÜNEN sowie bei Abgeordneten der AfD':
-                        print('Found it in 19108!')
                     comment = comments.text.strip('()').replace(u'\xa0', u' ')
-                    
                     comment_list.append({'speaker': current_speaker, 'comment': comment, 'date': date})
     return comment_list
     

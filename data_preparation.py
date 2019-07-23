@@ -33,16 +33,43 @@ def split_calls(comment):
     for sub_action in sub_actions:
         # replace comment content with list of parts; separate speaker from actual content of call
         # NOTE: length can be larger than 1
+        # TODO: look for "]," (speaker is usually on left side); otherwise search entire string for party or
+        # TODO: search for this format: "Weiterer Gegenruf, des Abg. Johannes Kahrs [SPD]"
+        
+        # seperate single speaker given on left side of ":" as <name> [<party>]: <call>
+                        
         if ":" in sub_action:
             call_left = sub_action.split(':')[0]
-            if ',' in call_left:
+            
+            if "]" in call_left[-1]:
+                # find "Johannes Kahrs" case with speaker on left side of ":", but with "," left in call_left
+                if ',' in call_left:
+                        print(call_left)
+                pass # all good, meaning this format for sub_action: <name> [<party>]: <call>
+            
+            # deal with case if extra information is given after [<party>] (usually specifies who single commenter addresses)
+            # search for party in "caller_left"
+            elif '],' in call_left:
                 call_from_to = call_left.split(',')
                 call_left = call_from_to[0]
                 directed_at = call_from_to[1]
-                print(directed_at)
+                pass
+            else:
+                # case of no single commenter; or single commenter is given in  right part for some reason
+                # assumption: multiple calls from all parties left in this string
+                if ',' in call_left:
+                    pass
+                    #print(call_left)
+                
+            
+            
             comment['comment'].append(call_left)
-            #print(call_left)
         else:
+            # no comment, but applause or something similar, can contain single and multiple acteurs
+            if ',' in sub_action:
+                if ']' in sub_action:
+                    pass               
+                    # print(sub_action)
             comment['comment'].append(sub_action)
     return True
 
@@ -190,11 +217,13 @@ def create_heatmap(dict_parties, label):
 
 if __name__ == "__main__":
 
+    """
     comment_list = get_data()
     # filters comments with speaker 'none'
     comment_list = list(filter(has_valid_speaker, comment_list))
     dict_applause = get_data_matrix_applause(comment_list)
     create_heatmap(dict_applause, 'Beifall')
+    """
     
     # TODO: work on copy of list is "filter" function, otherwise comment_list gets overwritten
     comment_list = get_data()
