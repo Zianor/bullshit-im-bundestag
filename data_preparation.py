@@ -1,7 +1,6 @@
 from xml_parser import get_data
 import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
 import seaborn as sns
 
 all_parties = []
@@ -26,15 +25,25 @@ def contains_applause(comment):
         return True
     return False
 
-
-def split_comments(comment):
+def split_calls(comment):
+    
     # split comment at hyphen in case of several action within one comment
-    sub_comments = comment['comment'].split(' – ')
+    sub_actions = comment['comment'].split(' – ')
     comment['comment'] = []
-    for sub_comment in sub_comments:
-        # replace comment content with list of parts
+    for sub_action in sub_actions:
+        # replace comment content with list of parts; separate speaker from actual content of call
         # NOTE: length can be larger than 1
-        comment['comment'].append(sub_comment)
+        if ":" in sub_action:
+            call_left = sub_action.split(':')[0]
+            if ',' in call_left:
+                call_from_to = call_left.split(',')
+                call_left = call_from_to[0]
+                directed_at = call_from_to[1]
+                print(directed_at)
+            comment['comment'].append(call_left)
+            #print(call_left)
+        else:
+            comment['comment'].append(sub_action)
     return True
 
 
@@ -68,7 +77,7 @@ def extract_applauding_party(sub_comments_list):
                 matching = all_parties
         # print(matching)
         if len(matching) == 0:
-            raise ValueError(f'Error: no party applauding could be found for comment: {sub_comment}!')
+            print(f'Error: no party applauding could be found for comment: {sub_comment}!')
     return matching
 
 
@@ -191,6 +200,8 @@ if __name__ == "__main__":
     comment_list = get_data()
     # filters comments with speaker 'none'
     comment_list = list(filter(has_valid_speaker, comment_list))
+    #comment_list = list(filter(split_calls, comment_list))
+    
     dict_comments = get_data_matrix_comments(comment_list)
     create_heatmap(dict_comments, 'Kommentare')
 

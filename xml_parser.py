@@ -9,6 +9,7 @@ def get_xml_files():
         if file.endswith('.xml'):
             xml_files.append('data/' + file)
     xml_trees = list(xml_files)
+    print(xml_trees)
     
     for i in range(0, len(xml_files)):
         with open(xml_files[i], 'rb') as xml_file:
@@ -22,15 +23,19 @@ def get_data():
     comment_list = []
 
     # TODO: remove after testing
-    #trees = trees[:]
+    trees = trees[:]
+    print(trees)
+    print(len(trees))
 
     for xml_tree in trees:
         root = xml_tree.getroot()
+        print('got here')
 
         # extract date
         date = ''
         for datum in root.iter('datum'):
             date = datum.attrib['date']
+            print(date)
 
         # extract data about speeches from XML protocol
         for topic in root.iter('tagesordnungspunkt'):
@@ -53,10 +58,12 @@ def get_data():
 
                 # extract content of comment
                 for comments in rede.iter('kommentar'):
+                    if comments == 'Beifall bei der SPD, der CDU/CSU, der FDP und dem BÜNDNIS 90/DIE GRÜNEN sowie bei Abgeordneten der AfD':
+                        print('Found it in 19108!')
                     comment = comments.text.strip('()').replace(u'\xa0', u' ')
                     
                     comment_list.append({'speaker': current_speaker, 'comment': comment, 'date': date})
-        return comment_list
+    return comment_list
     
 # TODO: serialization of comment_list
 
