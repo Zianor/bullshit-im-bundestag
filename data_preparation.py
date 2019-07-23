@@ -6,10 +6,12 @@ import seaborn as sns
 
 all_parties = []
 
+
 def has_valid_speaker(comment):
     if comment['speaker'] == 'none':
         return False
     return True
+
 
 def contains_applause(comment):
     if 'Beifall' in comment['comment']:
@@ -24,6 +26,7 @@ def contains_applause(comment):
         return True
     return False
 
+
 def split_comments(comment):
     # split comment at hyphen in case of several action within one comment
     sub_comments = comment['comment'].split(' – ')
@@ -34,11 +37,13 @@ def split_comments(comment):
         comment['comment'].append(sub_comment)
     return True
 
+
 def get_list_of_parties(comment_list):
     all_parties = set()
     for comment in comment_list:
         all_parties.add(comment['speaker'])
     return sorted(all_parties)
+
 
 # TODO: get rid of last comment when speaker changes
 # TODO: check whether party is surrounded by square brackets
@@ -51,19 +56,21 @@ def extract_applauding_party(sub_comments_list):
         # check for "der LINKEN" and "des BÜNDNISSES...",
         if "der LINKEN" in sub_comment:
                 matching.append("DIE LINKE")
-                #print('manual add for LINKE: ', sub_comment)
+                # print('manual add for LINKE: ', sub_comment)
         if "des BÜNDNISSES 90/DIE GRÜNEN" in sub_comment:
             matching.append("BÜNDNIS 90/DIE GRÜNEN")
-            #print('manual add GRÜNE: ', sub_comment)
+            # print('manual add GRÜNE: ', sub_comment)
         
         # check for "ganzen Hause" or just "Beifall"
         if len(matching) == 0:
-            if sub_comment == "Beifall" or sub_comment == "Beifall im ganzen Hause":
+            # TODO: use string in sub_comment
+            if sub_comment == "Beifall" or sub_comment == "Beifall im ganzen Hause" or sub_comment == "Beifall bei Abgeordneten im ganzen Hause":
                 matching = all_parties
-        #print(matching)
+        # print(matching)
         if len(matching) == 0:
             raise ValueError(f'Error: no party applauding could be found for comment: {sub_comment}!')
     return matching
+
 
 def get_data_matrix_applause(comment_list):
     comment_list_applause = list(filter(contains_applause, comment_list))
@@ -80,10 +87,10 @@ def get_data_matrix_applause(comment_list):
             dict_applause[party_from][party_to] = 0
     
     for comment in comment_list_applause:
-        #print(comment['comment'])
+        # print(comment['comment'])
         parties_applauding = extract_applauding_party(comment['comment'])
-        #print(comment['speaker'], parties_applauding)
-        #print(parties_applauding)
+        # print(comment['speaker'], parties_applauding)
+        # print(parties_applauding)
         
         # add dict of parties applauding to exisiting dict in dict_applause for speaking party
         # TODO: set value proportional to amount of people clapping / number of MOPs of party
@@ -96,6 +103,7 @@ def get_data_matrix_applause(comment_list):
     
     #print(all_parties)
     return dict_applause
+
 
 # TODO: get rid of last comment when speaker changes
 # TODO: check whether party is surrounded by square brackets
@@ -111,17 +119,18 @@ def extract_commenting_party(comment_str):
         #print('manual add for LINKE: ', sub_comment)
     if "des BÜNDNISSES 90/DIE GRÜNEN" in comment_str:
         matching.append("BÜNDNIS 90/DIE GRÜNEN")
-        #print('manual add GRÜNE: ', sub_comment)
+        # print('manual add GRÜNE: ', sub_comment)
     
     # check for "ganzen Hause" or just "Beifall"
     if len(matching) == 0:
         if comment_str == "Beifall" or comment_str == "Beifall im ganzen Hause":
             matching = all_parties
-    #print(matching)
+    # print(matching)
     if len(matching) == 0:
-        #raise ValueError(f'Error: no party applauding could be found for comment: {sub_comment}!')
+        # raise ValueError(f'Error: no party applauding could be found for comment: {sub_comment}!')
         print(f'Error: no party commenting could be found for comment: {comment_str}!')
     return matching
+
 
 def get_data_matrix_comments(comment_list):
     global all_parties
@@ -150,14 +159,15 @@ def get_data_matrix_comments(comment_list):
             else: 
                 dict_comments[comment['speaker']][party] = 1
     
-    #print(all_parties)
+    # print(all_parties)
     return dict_comments
+
 
 def create_heatmap(dict_parties, label):
     # convert nested dict to dataframe using pandas
     df = pd.DataFrame.from_dict(dict_parties)
     df = df.reindex(sorted(df.columns), axis=1)
-    #print(df)
+    # print(df)
     
     ax = sns.heatmap(df, cmap='RdYlGn_r', linewidths=0.5, annot=True, fmt='d')
     if label == "Beifall":
@@ -167,7 +177,8 @@ def create_heatmap(dict_parties, label):
     else:
         raise ValueError('Invalid label given for heatmap!')
     plt.show()
-    
+
+
 if __name__ == "__main__":
 
     comment_list = get_data()
