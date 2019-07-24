@@ -9,7 +9,6 @@ def get_xml_files():
         if file.endswith('.xml'):
             xml_files.append('data/' + file)
     xml_trees = list(xml_files)
-    print(xml_trees)
     
     for i in range(0, len(xml_files)):
         with open(xml_files[i], 'rb') as xml_file:
