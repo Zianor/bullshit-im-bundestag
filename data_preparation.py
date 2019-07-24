@@ -2,15 +2,24 @@ from xml_parser import get_data
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import json
 
-all_parties = []
+all_parties = set()
+seat_distribution = []
+
+
+def get_seat_distribution(session_year):
+    if session_year == 19:
+        distribution = json.load(open('data/seat_distribution19.json'))
+        return distribution
+    else:
+        return None
+
 
 def get_list_of_parties(comment_list):
     """
     Extracts all parties from comment_list and returns set with alphabetically sorted names.
     """
-    
-    all_parties = set()
     for comment in comment_list:
         all_parties.add(comment['speaker'])
     return sorted(all_parties)
@@ -52,7 +61,7 @@ def extract_commenting_party(comment):
     
                 # find cases like "Weiterer Gegenruf, des Abg. Johannes Kahrs [SPD]" with speaker on left side of ":", but with "," left in call_left
                 if ',' in call_left:
-                        #print(call_left)
+                        # print(call_left)
                         pass
                 
                 # all good, meaning this format for sub_action: <name> [<party>]: <call>
@@ -91,6 +100,9 @@ def extract_commenting_party(comment):
             dict_all[party][comment['speaker']] += count_single
             count_multiple = sub_action.count(party)-count_single
             # TODO: multiply count_multiple with number proportionate to number of MEPs per party
+            # TODO: meaningful scale
+            # values of seat distribution <1 and >0
+            count_multiple = int(count_multiple * seat_distribution[party])
             dict_all[party][comment['speaker']] += count_multiple
             
             if count_single > 0 or count_multiple > 0:
@@ -185,10 +197,8 @@ def extract_applauding_party(sub_comments_list):
         
         # check for "ganzen Hause" or just "Beifall"
         if len(matching) == 0:
-            
             if sub_comment == "Beifall" or sub_comment == "Beifall im ganzen Hause" or sub_comment == "Beifall bei Abgeordneten im ganzen Hause":
                 matching = all_parties
-        
         if len(matching) == 0:
             print(f'Error: no party applauding could be found for comment: {sub_comment}!')
     return matching
@@ -252,6 +262,7 @@ if __name__ == "__main__":
     """
     
     # TODO: work on copy of list is "filter" function, otherwise comment_list gets overwritten
+    seat_distribution= get_seat_distribution(19)
     comment_list = get_data()
     comment_list = list(filter(has_valid_speaker, comment_list))
     dict_comments = get_data_matrix_comments(comment_list)
