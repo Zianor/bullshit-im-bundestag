@@ -1,1 +1,8 @@
 __pycache__/*
+slides.pptx
+Bericht/*.aux
+Bericht/*.log
+Bericht/*.pdf
+Bericht/*.toc
+Bericht/*.gz
+Bericht/doc/*.aux

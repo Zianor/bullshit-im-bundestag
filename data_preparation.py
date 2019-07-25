@@ -5,21 +5,39 @@ import seaborn as sns
 import json
 
 all_parties = set()
-seat_distribution = []
-
+seat_distribution = {}
+seats_total = {}
+attendance_rate = 0.2
+percentage_participating = 0.2
 
 def get_seat_distribution(session_year):
+    global seat_distribution
     if session_year == 19:
-        distribution = json.load(open('data/seat_distribution19.json'))
-        return distribution
-    else:
+        with open('data/seat_distribution19.json', encoding='utf-8') as seat_file:
+            seat_distribution = json.load(seat_file)
+            return seat_distribution
+    else: 
         return None
 
+def get_seats_total(session_year):
+    """
+    Set global dict seats_total for number of seats per party and total number
+    of seats. Helper function for extract_commenting/applauding_party.
+    Throws an exception if JSON for session_year does not exist.
+    """
+    
+    global seats_total
+    file_name = f'data/seats_total{session_year}.json'
+    with open(file_name, encoding='utf-8') as seat_file:
+        seats_total = json.load(seat_file)
+    return seats_total
+    
 
 def get_list_of_parties(comment_list):
     """
     Extracts all parties from comment_list and returns set with alphabetically sorted names.
     """
+    all_parties = set()
     for comment in comment_list:
         all_parties.add(comment['speaker'])
     return sorted(all_parties)
@@ -40,6 +58,7 @@ def extract_commenting_party(comment):
     """
     
     global all_parties
+    global attendance_rate, percentage_participating
     dict_all = {}
     for party_from in all_parties:
         dict_all[party_from] = {}
@@ -102,7 +121,7 @@ def extract_commenting_party(comment):
             # TODO: multiply count_multiple with number proportionate to number of MEPs per party
             # TODO: meaningful scale
             # values of seat distribution <1 and >0
-            count_multiple = int(count_multiple * seat_distribution[party])
+            count_multiple *= int(max(seats_total[party]*attendance_rate*percentage_participating, 1))
             dict_all[party][comment['speaker']] += count_multiple
             
             if count_single > 0 or count_multiple > 0:
@@ -129,7 +148,7 @@ def extract_commenting_party(comment):
     return dict_all
 
 
-def get_data_matrix_comments(comment_list):
+def get_data_matrix_comments(comment_list, relative=False):
     """
     Returns nested dict for comment_list with indices [party_from][party_to] containing number
     of actions each. Sums up values per comment for entire comment_list.
@@ -137,6 +156,8 @@ def get_data_matrix_comments(comment_list):
     
     global all_parties
     all_parties = get_list_of_parties(comment_list)
+    global seats_total
+    seats_total = get_seats_total(19)
     
     # dictionary with party applauding as key and dictionary as value
     # value maps party applauding to how often every other party is being applauded
@@ -151,6 +172,11 @@ def get_data_matrix_comments(comment_list):
         for party_from in parties_commenting:
             for party_to in parties_commenting[party_from]:
                 dict_comments[party_from][party_to] += parties_commenting[party_from][party_to]
+    
+    if relative:
+        for party_from in parties_commenting:
+            for party_to in parties_commenting[party_from]:
+                dict_comments[party_from][party_to] /= seats_total[party_from]
     
     return dict_comments
 
@@ -204,7 +230,7 @@ def extract_applauding_party(sub_comments_list):
     return matching
 
 
-def get_data_matrix_applause(comment_list):
+def get_data_matrix_applause(comment_list, relative=False):
     """
     Returns nested dict with indices [party_from][party_to] containing number of applause given
     each for entire comment_list.
@@ -214,6 +240,9 @@ def get_data_matrix_applause(comment_list):
     
     global all_parties
     all_parties = get_list_of_parties(comment_list)
+    global seats_total
+    seats_total = get_seats_total(19)
+    print(seats_total)
     
     dict_applause = {}
     for party_from in all_parties:
@@ -234,6 +263,11 @@ def get_data_matrix_applause(comment_list):
             else:
                 dict_applause[party][comment['speaker']] = 1
     
+    if relative:
+        for party_from in all_parties:
+            for party_to in all_parties:
+                dict_applause[party_from][party_to] /= seats_total[party_from]
+    
     return dict_applause
 
 
@@ -242,29 +276,21 @@ def create_heatmap(dict_parties, label):
     df = pd.DataFrame.from_dict(dict_parties)
     df = df.reindex(sorted(df.columns), axis=1)
     
-    ax = sns.heatmap(df, cmap='RdYlGn_r', linewidths=0.5, annot=True, fmt='d')
-    if label == "Beifall":
-        ax.set_title('Beifall von ... für ...')
-    elif label == "Kommentare":
-        ax.set_title('Kommentare von ... für ...')
-    else:
-        raise ValueError('Invalid label given for heatmap!')
+    ax = sns.heatmap(df, cmap='RdYlGn_r', linewidths=0.5, annot=True, fmt='.1f')
+    ax.set_title(f'{label} von ... für ...')
     plt.show()
 
 
 if __name__ == "__main__":
 
-    """
     comment_list = get_data()
     comment_list = list(filter(has_valid_speaker, comment_list))
-    dict_applause = get_data_matrix_applause(comment_list)
-    create_heatmap(dict_applause, 'Beifall')
-    """
+    dict_applause = get_data_matrix_applause(comment_list, relative=True)
+    create_heatmap(dict_applause, 'Beifall relativ')
     
     # TODO: work on copy of list is "filter" function, otherwise comment_list gets overwritten
     seat_distribution= get_seat_distribution(19)
     comment_list = get_data()
     comment_list = list(filter(has_valid_speaker, comment_list))
-    dict_comments = get_data_matrix_comments(comment_list)
-    create_heatmap(dict_comments, 'Kommentare')
-
+    dict_comments = get_data_matrix_comments(comment_list, relative=True)
+    create_heatmap(dict_comments, 'Kommentare relativ')
