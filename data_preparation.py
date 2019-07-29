@@ -11,9 +11,14 @@ seat_distribution = {}
 seats_total = {}
 attendance_rate = 0.2
 percentage_participating = 0.2
+initialized = False
 
 
 def get_seat_distribution(session_year):
+    """
+        Set global dict seat_distribution for seat distripution in percent.
+        Throws an exception if JSON for session_year does not exist.
+        """
     global seat_distribution
     if session_year == 19:
         with open('data/seat_distribution19.json', encoding='utf-8') as seat_file:
@@ -41,7 +46,6 @@ def get_list_of_parties(comment_list):
     """
     Extracts all parties from comment_list and returns set with alphabetically sorted names.
     """
-    all_parties = set()
     for comment in comment_list:
         all_parties.add(comment['speaker'])
     return sorted(all_parties)
@@ -163,10 +167,8 @@ def get_data_matrix_comments(comment_list, relative=False):
     of actions each. Sums up values per comment for entire comment_list.
     """
     
-    global all_parties
-    all_parties = get_list_of_parties(comment_list)
-    global seats_total
-    seats_total = get_seats_total(19)
+    if not initialized:
+        initialize(comment_list)
     
     # dictionary with party commenting as key and dictionary as value
     # value maps party commenting to how often every other party is being applauded
@@ -230,21 +232,25 @@ def extract_applauding_party(comment):
     return matching
 
 
+def initialize(comment_list):
+    global initialized, seat_distribution, seats_total, all_parties
+    get_seat_distribution(19)
+    get_seats_total(19)
+    all_parties = get_list_of_parties(comment_list)
+    initialized = True
+
+
 def get_data_matrix_applause(comment_list, relative=False):
     """
     Returns nested dict with indices [party_from][party_to] containing number of applause given
     each for entire comment_list.
     """
-    
+    global initialized
     comment_list_applause = list(filter(contains_applause, comment_list))
 
-    # TODO: Do this once for every comment list, not in every function
-    global all_parties
-    all_parties = get_list_of_parties(comment_list)
-    global seats_total
-    seats_total = get_seats_total(19)
-    print(seats_total)
-    
+    if not initialized:
+        initialize(comment_list)
+
     dict_applause = get_party_dict()
     
     # dictionary with party applauding as key and dictionary as value
@@ -256,7 +262,8 @@ def get_data_matrix_applause(comment_list, relative=False):
                 dict_applause[party][comment['speaker']] += 1
             else:
                 dict_applause[party][comment['speaker']] = 1
-    
+
+    # TODO: ergibt das hier überhaupt Sinn mit dem Relativ?
     if relative:
         for party_from in all_parties:
             for party_to in all_parties:
@@ -289,6 +296,7 @@ def load_data(renew_data):
 if __name__ == "__main__":
     comment_list = load_data(False)
     comment_list_filtered = list(filter(has_valid_speaker, comment_list))
+    initialize(comment_list_filtered)
 
     dict_applause = get_data_matrix_applause(comment_list_filtered, relative=True)
     create_heatmap(dict_applause, 'Beifall relativ')
