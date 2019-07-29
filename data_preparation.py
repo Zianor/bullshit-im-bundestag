@@ -168,13 +168,9 @@ def get_data_matrix_comments(comment_list, relative=False):
     global seats_total
     seats_total = get_seats_total(19)
     
-    # dictionary with party applauding as key and dictionary as value
-    # value maps party applauding to how often every other party is being applauded
-    dict_comments = {}
-    for party_from in all_parties:
-        dict_comments[party_from] = {}
-        for party_to in all_parties:
-            dict_comments[party_from][party_to] = 0
+    # dictionary with party commenting as key and dictionary as value
+    # value maps party commenting to how often every other party is being applauded
+    dict_comments = get_party_dict()
     
     for comment in comment_list:
         parties_commenting = extract_commenting_party(comment)
@@ -191,20 +187,7 @@ def get_data_matrix_comments(comment_list, relative=False):
 
 
 def contains_applause(comment):
-    """
-    Replace comment string inside comment dict with list of relevant substrings containing
-    "Beifall" to simplify search for party. Returns true if comment contains "Beifall".
-    """
-    
     if 'Beifall' in comment['comment']:
-        # split comment at hyphen in case of several action within one comment
-        sub_comments = comment['comment'].split(' – ')
-        comment['comment'] = []
-        for sub_comment in sub_comments:
-            # replace comment content with list of parts containing applause
-            # NOTE: length can be larger than 1
-            if 'Beifall' in sub_comment:
-                comment['comment'].append(sub_comment)
         return True
     return False
 
@@ -212,7 +195,7 @@ def contains_applause(comment):
 # TODO: get rid of last comment when speaker changes perhaps?
 # TODO: check whether party is surrounded by square brackets
 # TODO: change this to something similar to extract_commenting_party?
-def extract_applauding_party(sub_comments_list):
+def extract_applauding_party(comment):
     """
     Returns list of parties applauding in list of string that were part of original comment
     and contain "Beifall". This does not take into account whether the party is given in brackets.
@@ -220,7 +203,15 @@ def extract_applauding_party(sub_comments_list):
     """
     
     global all_parties
-    
+
+    sub_comments = comment.split(' – ')
+    sub_comments_list = []
+    for sub_comment in sub_comments:
+        # replace comment content with list of parts containing applause
+        # NOTE: length can be larger than 1
+        if 'Beifall' in sub_comment:
+            sub_comments_list.append(sub_comment)
+
     for sub_comment in sub_comments_list:
         matching = [party for party in all_parties if party in sub_comment]
         
@@ -246,26 +237,20 @@ def get_data_matrix_applause(comment_list, relative=False):
     """
     
     comment_list_applause = list(filter(contains_applause, comment_list))
-    
+
+    # TODO: Do this once for every comment list, not in every function
     global all_parties
     all_parties = get_list_of_parties(comment_list)
     global seats_total
     seats_total = get_seats_total(19)
     print(seats_total)
     
-    dict_applause = {}
-    for party_from in all_parties:
-        dict_applause[party_from] = {}
-        for party_to in all_parties:
-            dict_applause[party_from][party_to] = 0
+    dict_applause = get_party_dict()
     
     # dictionary with party applauding as key and dictionary as value
     # value maps party applauding to value to measure how often each party is being applauded
     for comment in comment_list_applause:
         parties_applauding = extract_applauding_party(comment['comment'])
-        
-        # add dict of parties applauding to exisiting dict in dict_applause for speaking party
-        # TODO: set value proportional to amount of people clapping / number of MOPs of party
         for party in parties_applauding:
             if party in dict_applause:
                 dict_applause[party][comment['speaker']] += 1
@@ -304,11 +289,9 @@ def load_data(renew_data):
 if __name__ == "__main__":
     comment_list = load_data(False)
     comment_list_filtered = list(filter(has_valid_speaker, comment_list))
+
     dict_applause = get_data_matrix_applause(comment_list_filtered, relative=True)
     create_heatmap(dict_applause, 'Beifall relativ')
 
-    # TODO: work on copy of list is "filter" function, otherwise comment_list gets overwritten
-    comment_list = load_data(False)
-    comment_list_filtered = list(filter(has_valid_speaker, comment_list))
     dict_comments = get_data_matrix_comments(comment_list_filtered, relative=True)
     create_heatmap(dict_comments, 'Kommentare relativ')
