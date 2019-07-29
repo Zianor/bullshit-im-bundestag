@@ -293,6 +293,34 @@ def load_data(renew_data):
     return comments
 
 
+def create_distribution_self_other(dict_parties):
+    distribution_self_other = {}
+    for party_from in all_parties:
+        distribution_self_other[party_from] = {}
+        sum_all = 0
+        sum_self = dict_parties[party_from][party_from]
+        for party_to in all_parties:
+            sum_all += dict_parties[party_from][party_to]
+        sum_others = sum_all - sum_self
+        distribution_self_other[party_from]['self'] = sum_self/sum_all*100
+        # distribution_self_other[party_from]['other'] = sum_others/sum_all*100
+    return distribution_self_other
+
+
+def visualize_distribution_self_other(dict_parties, label):
+    df = pd.DataFrame.from_dict(dict_parties)
+    df = df.reindex(sorted(df.columns), axis=1)
+
+    sns.set(font_scale=0.8)
+
+    # TODO: search better visual representation (with self and other as stacked bar plot)
+    ax = sns.barplot(data=df)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right")
+    plt.tight_layout()
+    plt.title(f'{label}')
+    plt.show()
+
+
 if __name__ == "__main__":
     comment_list = load_data(False)
     comment_list_filtered = list(filter(has_valid_speaker, comment_list))
@@ -300,6 +328,10 @@ if __name__ == "__main__":
 
     dict_applause = get_data_matrix_applause(comment_list_filtered, relative=True)
     create_heatmap(dict_applause, 'Beifall relativ')
+    dict_applause_self = create_distribution_self_other(dict_applause)
+    visualize_distribution_self_other(dict_applause_self, 'Beifall für die eigene Partei in %')
 
     dict_comments = get_data_matrix_comments(comment_list_filtered, relative=True)
     create_heatmap(dict_comments, 'Kommentare relativ')
+    dict_comment_self = create_distribution_self_other(dict_comments)
+    visualize_distribution_self_other(dict_comment_self, 'Kommentare zur eigenen Partei in %')
