@@ -3,12 +3,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import json
+import os.path
+import pickle
 
 all_parties = set()
 seat_distribution = {}
 seats_total = {}
 attendance_rate = 0.2
 percentage_participating = 0.2
+
 
 def get_seat_distribution(session_year):
     global seat_distribution
@@ -18,6 +21,7 @@ def get_seat_distribution(session_year):
             return seat_distribution
     else: 
         return None
+
 
 def get_seats_total(session_year):
     """
@@ -281,16 +285,24 @@ def create_heatmap(dict_parties, label):
     plt.show()
 
 
-if __name__ == "__main__":
+def load_data(renew_data):
+    if renew_data or not os.path.exists('data/comments'):
+        get_data()
+    comments = None
+    with open('data/comments', 'rb') as comment_file:
+        comments = pickle.load(comment_file)
+    return comments
 
-    comment_list = get_data()
-    comment_list = list(filter(has_valid_speaker, comment_list))
-    dict_applause = get_data_matrix_applause(comment_list, relative=True)
+
+if __name__ == "__main__":
+    comment_list = load_data(False)
+    comment_list_filtered = list(filter(has_valid_speaker, comment_list))
+    dict_applause = get_data_matrix_applause(comment_list_filtered, relative=True)
     create_heatmap(dict_applause, 'Beifall relativ')
-    
+
     # TODO: work on copy of list is "filter" function, otherwise comment_list gets overwritten
-    seat_distribution= get_seat_distribution(19)
-    comment_list = get_data()
-    comment_list = list(filter(has_valid_speaker, comment_list))
-    dict_comments = get_data_matrix_comments(comment_list, relative=True)
+    seat_distribution = get_seat_distribution(19)
+    comment_list = load_data(False)
+    comment_list_filtered = list(filter(has_valid_speaker, comment_list))
+    dict_comments = get_data_matrix_comments(comment_list_filtered, relative=True)
     create_heatmap(dict_comments, 'Kommentare relativ')
