@@ -53,6 +53,16 @@ def has_valid_speaker(comment):
     return True
 
 
+def get_party_dict():
+    global all_parties
+    dict_all = {}
+    for party_from in all_parties:
+        dict_all[party_from] = {}
+        for party_to in all_parties:
+            dict_all[party_from][party_to] = 0
+    return dict_all
+
+
 def extract_commenting_party(comment):
     """
     Input argument is comment dict from comment_list. Comment is reduced to relevant part
@@ -60,15 +70,10 @@ def extract_commenting_party(comment):
     and value for number of actions each.
     TODO: set value according to size of party if there are multiple commenters / participants
     """
-    
-    global all_parties
+
     global attendance_rate, percentage_participating
-    dict_all = {}
-    for party_from in all_parties:
-        dict_all[party_from] = {}
-        for party_to in all_parties:
-            dict_all[party_from][party_to] = 0
-    
+    dict_all = get_party_dict()
+
     party_found = False
     
     # split comment at hyphen in case of several action within one comment
@@ -124,7 +129,7 @@ def extract_commenting_party(comment):
             count_multiple = sub_action.count(party)-count_single
             # TODO: multiply count_multiple with number proportionate to number of MEPs per party
             # TODO: meaningful scale
-            # values of seat distribution <1 and >0
+            # TODO: why do we have attendance_rate and percentage_participating? Shouldn't we use only one of them?
             count_multiple *= int(max(seats_total[party]*attendance_rate*percentage_participating, 1))
             dict_all[party][comment['speaker']] += count_multiple
             
@@ -279,9 +284,11 @@ def create_heatmap(dict_parties, label):
     # convert nested dict to dataframe using pandas
     df = pd.DataFrame.from_dict(dict_parties)
     df = df.reindex(sorted(df.columns), axis=1)
-    
-    ax = sns.heatmap(df, cmap='RdYlGn_r', linewidths=0.5, annot=True, fmt='.1f')
-    ax.set_title(f'{label} von ... für ...')
+
+    sns.set(font_scale=0.8)
+
+    ax = sns.heatmap(df, cmap='Blues', annot=True, fmt='.1f')
+    plt.title(f'{label} von ... für ...\n\n')
     plt.show()
 
 
@@ -301,7 +308,6 @@ if __name__ == "__main__":
     create_heatmap(dict_applause, 'Beifall relativ')
 
     # TODO: work on copy of list is "filter" function, otherwise comment_list gets overwritten
-    seat_distribution = get_seat_distribution(19)
     comment_list = load_data(False)
     comment_list_filtered = list(filter(has_valid_speaker, comment_list))
     dict_comments = get_data_matrix_comments(comment_list_filtered, relative=True)
