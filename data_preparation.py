@@ -195,13 +195,10 @@ def contains_applause(comment):
 
 
 # TODO: get rid of last comment when speaker changes perhaps?
-# TODO: check whether party is surrounded by square brackets
-# TODO: change this to something similar to extract_commenting_party?
 def extract_applauding_party(comment):
     """
     Returns list of parties applauding in list of string that were part of original comment
     and contain "Beifall". This does not take into account whether the party is given in brackets.
-    TODO: merge this function with contains_applause to create something similar to extract_commenting_party.
     """
     
     global all_parties
