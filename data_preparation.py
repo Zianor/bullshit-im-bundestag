@@ -72,7 +72,6 @@ def extract_commenting_party(comment):
     Input argument is comment dict from comment_list. Comment is reduced to relevant part
     containing party. Function returns nested dict with indices [party_from][party_to]
     and value for number of actions each.
-    TODO: set value according to size of party if there are multiple commenters / participants
     """
 
     global attendance_rate, percentage_participating
@@ -131,9 +130,7 @@ def extract_commenting_party(comment):
             count_single = sub_action.count(f'[{party}]')
             dict_all[party][comment['speaker']] += count_single
             count_multiple = sub_action.count(party)-count_single
-            # TODO: multiply count_multiple with number proportionate to number of MEPs per party
-            # TODO: meaningful scale
-            # TODO: why do we have attendance_rate and percentage_participating? Shouldn't we use only one of them?
+            
             count_multiple *= int(max(seats_total[party]*attendance_rate*percentage_participating, 1))
             dict_all[party][comment['speaker']] += count_multiple
             
@@ -141,19 +138,20 @@ def extract_commenting_party(comment):
                 party_found = True
         
         # check for "der LINKEN" and "des BÜNDNISSES...",
+        # TODO: use weighted values!!!
         if "der LINKEN" in sub_action:
             party_found = True
-            dict_all["DIE LINKE"][comment['speaker']] += 1
+            dict_all["DIE LINKE"][comment['speaker']] += int(max(seats_total["DIE LINKE"]*attendance_rate*percentage_participating, 1))
         if "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
             party_found = True
-            dict_all["BÜNDNIS 90/DIE GRÜNEN"][comment['speaker']] += 1
+            dict_all["BÜNDNIS 90/DIE GRÜNEN"][comment['speaker']] += int(max(seats_total["BÜNDNIS 90/DIE GRÜNEN"]*attendance_rate*percentage_participating, 1))
         
         # check for "ganzen Hause" or just "Beifall"; ignore "Heiterkeit", "Zurufe" etc.
         if sub_action == "Beifall" or sub_action == "Beifall im ganzen Hause" \
         or sub_action == "Beifall bei Abgeordneten im ganzen Hause":
             party_found = True
             for party_from in dict_all:
-                dict_all[party_from][comment['speaker']] += 1
+                dict_all[party_from][comment['speaker']] += int(max(seats_total[party_from]*attendance_rate*percentage_participating, 1))
                 
         if not party_found:
             print(f'Error: no party commenting could be found for comment: {sub_action}!')
@@ -181,8 +179,8 @@ def get_data_matrix_comments(comment_list, relative=False):
                 dict_comments[party_from][party_to] += parties_commenting[party_from][party_to]
     
     if relative:
-        for party_from in parties_commenting:
-            for party_to in parties_commenting[party_from]:
+        for party_from in dict_comments:
+            for party_to in dict_comments[party_from]:
                 dict_comments[party_from][party_to] /= seats_total[party_from]
     
     return dict_comments
@@ -229,14 +227,6 @@ def extract_applauding_party(comment):
     return matching
 
 
-def initialize(comment_list):
-    global initialized, seat_distribution, seats_total, all_parties
-    get_seat_distribution(19)
-    get_seats_total(19)
-    all_parties = get_list_of_parties(comment_list)
-    initialized = True
-
-
 def get_data_matrix_applause(comment_list, relative=False):
     """
     Returns nested dict with indices [party_from][party_to] containing number of applause given
@@ -267,6 +257,97 @@ def get_data_matrix_applause(comment_list, relative=False):
                 dict_applause[party_from][party_to] /= seats_total[party_from]
     
     return dict_applause
+
+
+def contains_laughter(comment):
+    if 'Lachen' in comment['comment']:
+        return True
+    return False
+
+
+def extract_laughing_party(comment):
+    """
+    Input argument is comment dict from comment_list. Comment is reduced to relevant part
+    containing laughter. Function returns nested dict with indices [party_from][party_to]
+    and value for number of laughter each; value is set according to number of participants
+    and proportional to size of party.
+    """
+    
+    global attendance_rate, percentage_participating
+    dict_all = get_party_dict()
+
+    party_found = False
+    
+    # split comment at hyphen in case of several action within one comment
+    sub_actions = comment['comment'].split(' – ')
+    
+    for sub_action in sub_actions:
+        if not 'Lachen' in sub_action:
+            continue
+        
+        # this means 'Lachen' is not the action, but part of a call
+        if ":" in sub_action:
+            continue
+            
+        # search for party in sub_action
+        for party in all_parties:
+            count_single = sub_action.count(f'[{party}]')
+            dict_all[party][comment['speaker']] += count_single
+            count_multiple = sub_action.count(party)-count_single
+            
+            count_multiple *= int(max(seats_total[party]*attendance_rate*percentage_participating, 1))
+            dict_all[party][comment['speaker']] += count_multiple
+            
+            if count_single > 0 or count_multiple > 0:
+                party_found = True
+        
+        # check for "der LINKEN" and "des BÜNDNISSES..."
+        if "der LINKEN" in sub_action:
+            party_found = True
+            dict_all["DIE LINKE"][comment['speaker']] += int(max(seats_total["DIE LINKE"]*attendance_rate*percentage_participating, 1))
+        if "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
+            party_found = True
+            dict_all["BÜNDNIS 90/DIE GRÜNEN"][comment['speaker']] += int(max(seats_total["BÜNDNIS 90/DIE GRÜNEN"]*attendance_rate*percentage_participating, 1))
+        
+        if not party_found:
+            print(f'Error: no party commenting could be found for comment: {sub_action}!')
+        
+    return dict_all
+
+
+def get_data_matrix_laughter(comment_list, relative=False):
+    """
+    Returns nested dict with indices [party_from][party_to] containing number of laughter
+    per party for currently speaking party for entire comment_list.
+    """
+    global initialized
+    comment_list_laughter = list(filter(contains_laughter, comment_list))
+    
+    if not initialized:
+        initialize(comment_list)
+        
+    dict_laughter = get_party_dict()
+    
+    for comment in comment_list_laughter:
+        parties_laughing = extract_laughing_party(comment)
+        for party_from in parties_laughing:
+            for party_to in parties_laughing[party_from]:
+                dict_laughter[party_from][party_to] += parties_laughing[party_from][party_to]
+    
+    if relative:
+        for party_from in dict_laughter:
+            for party_to in dict_laughter[party_from]:
+                dict_laughter[party_from][party_to] /= seats_total[party_from]
+    
+    return dict_laughter
+
+
+def initialize(comment_list):
+    global initialized, seat_distribution, seats_total, all_parties
+    get_seat_distribution(19)
+    get_seats_total(19)
+    all_parties = get_list_of_parties(comment_list)
+    initialized = True
 
 
 def create_heatmap(dict_parties, label):
@@ -322,13 +403,30 @@ if __name__ == "__main__":
     comment_list = load_data(False)
     comment_list_filtered = list(filter(has_valid_speaker, comment_list))
     initialize(comment_list_filtered)
+    
+    
+    dict_laughter = get_data_matrix_laughter(comment_list_filtered, relative=True)
+    create_heatmap(dict_laughter, 'Verhältnis von Lachen zu Parteigröße')
+    
+    dict_laughter_total = get_data_matrix_laughter(comment_list_filtered, relative=False)
+    create_heatmap(dict_laughter_total, 'absolute Anzahl an Lachen')
+
 
     dict_applause = get_data_matrix_applause(comment_list_filtered, relative=True)
-    create_heatmap(dict_applause, 'Beifall relativ')
+    create_heatmap(dict_applause, 'Verhältnis Beifall zu Parteigröße')
+    
+    dict_applause_total = get_data_matrix_applause(comment_list_filtered, relative=False)
+    create_heatmap(dict_applause_total, 'absolute Anzahl an Beifall')
+    
     dict_applause_self = create_distribution_self_other(dict_applause)
     visualize_distribution_self_other(dict_applause_self, 'Beifall für die eigene Partei in %')
+    
 
     dict_comments = get_data_matrix_comments(comment_list_filtered, relative=True)
-    create_heatmap(dict_comments, 'Kommentare relativ')
+    create_heatmap(dict_comments, 'Verhältnis Kommentarzahl zu Parteigröße')
+    
+    dict_comments_total = get_data_matrix_comments(comment_list_filtered, relative=False)
+    create_heatmap(dict_comments_total, 'absolute Anzahl an Kommentaren')
+    
     dict_comment_self = create_distribution_self_other(dict_comments)
     visualize_distribution_self_other(dict_comment_self, 'Kommentare zur eigenen Partei in %')
