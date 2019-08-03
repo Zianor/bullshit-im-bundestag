@@ -154,7 +154,8 @@ def extract_commenting_party(comment):
                 dict_all[party_from][comment['speaker']] += int(max(seats_total[party_from]*attendance_rate*percentage_participating, 1))
                 
         if not party_found:
-            print(f'Error: no party commenting could be found for comment: {sub_action}!')
+            pass
+            # print(f'Error: no party commenting could be found for comment: {sub_action}!')
         
     return dict_all
 
@@ -223,7 +224,8 @@ def extract_applauding_party(comment):
             if sub_comment == "Beifall" or sub_comment == "Beifall im ganzen Hause" or sub_comment == "Beifall bei Abgeordneten im ganzen Hause":
                 matching = all_parties
         if len(matching) == 0:
-            print(f'Error: no party applauding could be found for comment: {sub_comment}!')
+            pass
+            # print(f'Error: no party applauding could be found for comment: {sub_comment}!')
     return matching
 
 
@@ -310,7 +312,8 @@ def extract_laughing_party(comment):
             dict_all["BÜNDNIS 90/DIE GRÜNEN"][comment['speaker']] += int(max(seats_total["BÜNDNIS 90/DIE GRÜNEN"]*attendance_rate*percentage_participating, 1))
         
         if not party_found:
-            print(f'Error: no party commenting could be found for comment: {sub_action}!')
+            pass
+            # print(f'Error: no party commenting could be found for comment: {sub_action}!')
         
     return dict_all
 
@@ -352,7 +355,7 @@ def initialize(comment_list):
 
 def create_heatmap(dict_parties, label):
     # convert nested dict to dataframe using pandas
-    df = pd.DataFrame.from_dict(dict_parties)
+    df = pd.DataFrame.from_dict(dict_parties).transpose()
     df = df.reindex(sorted(df.columns), axis=1)
 
     sns.set(font_scale=0.8)
@@ -410,7 +413,6 @@ if __name__ == "__main__":
     
     dict_laughter_total = get_data_matrix_laughter(comment_list_filtered, relative=False)
     create_heatmap(dict_laughter_total, 'absolute Anzahl an Lachen')
-
 
     dict_applause = get_data_matrix_applause(comment_list_filtered, relative=True)
     create_heatmap(dict_applause, 'Verhältnis Beifall zu Parteigröße')
