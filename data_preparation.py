@@ -90,10 +90,10 @@ def extract_commenting_party(comment):
     #    print(comment['comment'], '\r\n')
     
     # track previous speaker in case parties address each other in calls
-    is_single_caller = False
     previous_callers = []
     
     for sub_action in sub_actions:
+        is_single_caller = False
         party_addressed = None
         
         # separate single speaker given on left side of ":" as <name> [<party>]: <call>
@@ -119,6 +119,8 @@ def extract_commenting_party(comment):
                 directed_at = call_from_to[1]
                 if 'gewandt' in directed_at:
                     matching = [party for party in all_parties if party in directed_at]
+                    if directed_at == "an die übrigen Fraktionen gewandt":
+                        matching = [party for party in all_parties if party not in call_left]
                     if len(matching) != 1:
                         print(f'Error: tried to find single party in directed_at part of call, but failed: {comment["comment"]}')
                     else:
@@ -151,6 +153,18 @@ def extract_commenting_party(comment):
         
         # no calls, but applause or something similar, can contain single and multiple participants
         else:
+            if sub_action.startswith("Zurufe"):
+                single_caller = [party for party in all_parties if party in sub_action]
+                caller = None
+                if len(single_caller) == 0:
+                    if "der LINKEN" in sub_action:
+                        caller = "DIE LINKE"
+                    elif "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
+                        caller = "BÜNDNIS 90/DIE GRÜNEN"
+                else:
+                    caller = single_caller[0]
+                if caller is not None:
+                    previous_callers.append(caller)
             if ',' in sub_action:
                 if ']' in sub_action:
                     #print(sub_action)
