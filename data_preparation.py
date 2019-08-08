@@ -1,7 +1,4 @@
 from xml_parser import get_data
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 import json
 import os.path
 import pickle
@@ -371,11 +368,12 @@ def get_data_matrix_laughter(comment_list, relative=False):
     Returns nested dict with indices [party_from][party_to] containing number of laughter
     per party for currently speaking party for entire comment_list.
     """
-    global initialized
-    comment_list_laughter = list(filter(contains_laughter, comment_list))
+    global initialize
     
     if not initialized:
         initialize(comment_list)
+
+    comment_list_laughter = list(filter(contains_laughter, comment_list))
         
     dict_laughter = get_party_dict()
     
@@ -401,24 +399,14 @@ def initialize(comment_list):
     initialized = True
 
 
-def create_heatmap(dict_parties, label):
-    # convert nested dict to dataframe using pandas
-    df = pd.DataFrame.from_dict(dict_parties).transpose()
-    df = df.reindex(sorted(df.columns), axis=1)
-
-    sns.set(font_scale=0.8)
-
-    ax = sns.heatmap(df, cmap='Blues', annot=True, fmt='.1f')
-    plt.title(f'{label} von ... für ...\n\n')
-    plt.show()
-
-
 def load_data(renew_data):
     if renew_data or not os.path.exists('data/comments'):
         get_data()
     comments = None
     with open('data/comments', 'rb') as comment_file:
         comments = pickle.load(comment_file)
+    if comments:
+        comments = list(filter(has_valid_speaker, comments))
     return comments
 
 
@@ -436,46 +424,5 @@ def create_distribution_self_other(dict_parties):
     return distribution_self_other
 
 
-def visualize_distribution_self_other(dict_parties, label):
-    df = pd.DataFrame.from_dict(dict_parties)
-    df = df.reindex(sorted(df.columns), axis=1)
-
-    sns.set(font_scale=0.8)
-
-    # TODO: search better visual representation (with self and other as stacked bar plot)
-    ax = sns.barplot(data=df)
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right")
-    plt.tight_layout()
-    plt.title(f'{label}')
-    plt.show()
-
-
 if __name__ == "__main__":
-    comment_list = load_data(False)
-    comment_list_filtered = list(filter(has_valid_speaker, comment_list))
-    initialize(comment_list_filtered)
-    
-    dict_laughter = get_data_matrix_laughter(comment_list_filtered, relative=True)
-    create_heatmap(dict_laughter, 'Verhältnis von Lachen zu Parteigröße')
-    
-    dict_laughter_total = get_data_matrix_laughter(comment_list_filtered, relative=False)
-    create_heatmap(dict_laughter_total, 'absolute Anzahl an Lachen')
-
-    dict_applause = get_data_matrix_applause(comment_list_filtered, relative=True)
-    create_heatmap(dict_applause, 'Verhältnis Beifall zu Parteigröße')
-    
-    dict_applause_total = get_data_matrix_applause(comment_list_filtered, relative=False)
-    create_heatmap(dict_applause_total, 'absolute Anzahl an Beifall')
-    
-    dict_applause_self = create_distribution_self_other(dict_applause)
-    visualize_distribution_self_other(dict_applause_self, 'Beifall für die eigene Partei in %')
-    
-
-    dict_comments = get_data_matrix_comments(comment_list_filtered, relative=True)
-    create_heatmap(dict_comments, 'Verhältnis Kommentarzahl zu Parteigröße')
-    
-    dict_comments_total = get_data_matrix_comments(comment_list_filtered, relative=False)
-    create_heatmap(dict_comments_total, 'absolute Anzahl an Kommentaren')
-    
-    dict_comment_self = create_distribution_self_other(dict_comments)
-    visualize_distribution_self_other(dict_comment_self, 'Kommentare zur eigenen Partei in %')
+    pass
