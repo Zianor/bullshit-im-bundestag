@@ -3,29 +3,11 @@ import json
 import os.path
 
 all_parties = set()
-seat_distribution = {}
 seats_total = {}
 attendance_rate = 0.2
 percentage_participating = 0.2
 initialized = False
 path_comments = ''
-
-
-def get_seat_distribution(session_year):
-    """
-    Sets global dict seat_distribution for seat distripution in percent. Make sure the 
-    JSON file has this name: 'seat_distributionYY.json'. Throws an exception if 
-    JSON for session_year does not exist. Returns dictionary with seat distribution
-    per party.
-    """
-    global seat_distribution
-    file_name = f'data/seat_distribution{session_year}.json'
-    if not os.path.exists(file_name):
-        raise ValueError(f'No JSON input data for session year {session_year} found!')
-    
-    with open(file_name, encoding='utf-8') as seat_file:
-        seat_distribution = json.load(seat_file)
-        return seat_distribution
 
 
 def get_seats_total(session_year):
@@ -132,6 +114,7 @@ def extract_commenting_party(comment):
                     
             elif call_left.startswith("Weiterer Gegenruf"):
                 #print(call_left, ' - ', previous_callers[-2], ' -\r\n', comment['comment'], '\r\n')
+                # TODO: does not work for more than two consecutive replies, but that has never occurred
                 party_addressed = previous_callers[-2]
             
             # case of single commenter without party or multiple commenters are not specified
@@ -300,12 +283,8 @@ def get_data_matrix_applause(comment_list, relative=False):
     for comment in comment_list_applause:
         parties_applauding = extract_applauding_party(comment['comment'])
         for party in parties_applauding:
-            if party in dict_applause:
-                dict_applause[party][comment['speaker']] += 1
-            else:
-                dict_applause[party][comment['speaker']] = 1
-
-    # TODO: ergibt das hier überhaupt Sinn mit dem Relativ?
+            dict_applause[party][comment['speaker']] += 1
+                
     if relative:
         for party_from in all_parties:
             for party_to in all_parties:
@@ -398,9 +377,51 @@ def get_data_matrix_laughter(comment_list, relative=False):
     return dict_laughter
 
 
+def cotains_direct_calls(comment):
+    if "Gegenruf" or "gewandt" in comment['comment']:
+        return True
+    return False
+
+def extract_addressed_party(comment):
+    """
+    Input argument is comment dict from comment_list. Function returns nested dict 
+    with indices [party_from][party_to] and value for number of direct comments each.
+    """
+    dict_all = get_party_dict()
+
+    party_found = False
+    
+    # split comment at hyphen in case of several action within one comment
+    sub_actions = comment['comment'].split(' – ')
+    
+    for sub_action in sub_actions:
+        pass
+        # print(f'Error: no party commenting could be found for comment: {sub_action}!')
+        
+    return dict_all
+
+
+def get_data_matrix_direct_calls(comment_list, relative=False):
+    """
+    Returns nested dict with indices [party_from][party_to] containing number of direct
+    comments that address specific parties either by replying to a previous call or by 
+    speaking to a party.
+    """
+    global initialize
+    
+    if not initialized:
+        initialize(comment_list)
+    
+    comment_list_direct = list(filter(contains_direct_calls, comment_list))
+    
+    dict_direct_comments = get_party_dict()
+    
+    for comment in comment_list_direct:
+        pass
+
+
 def initialize(comment_list):
-    global initialized, seat_distribution, seats_total, all_parties
-    get_seat_distribution(19)
+    global initialized, seats_total, all_parties
     get_seats_total(19)
     all_parties = get_list_of_parties(comment_list)
     initialized = True
