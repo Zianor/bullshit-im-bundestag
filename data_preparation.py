@@ -16,27 +16,33 @@ initialized = False
 
 def get_seat_distribution(session_year):
     """
-        Set global dict seat_distribution for seat distripution in percent.
-        Throws an exception if JSON for session_year does not exist.
-        """
+    Sets global dict seat_distribution for seat distripution in percent. Make sure the 
+    JSON file has this name: 'seat_distributionYY.json'. Throws an exception if 
+    JSON for session_year does not exist. Returns dictionary with seat distribution
+    per party.
+    """
     global seat_distribution
-    if session_year == 19:
-        with open('data/seat_distribution19.json', encoding='utf-8') as seat_file:
-            seat_distribution = json.load(seat_file)
-            return seat_distribution
-    else: 
-        return None
+    file_name = f'data/seat_distribution{session_year}.json'
+    if not os.path.exists(file_name):
+        raise ValueError(f'No JSON input data for session year {session_year} found!')
+    
+    with open(file_name, encoding='utf-8') as seat_file:
+        seat_distribution = json.load(seat_file)
+        return seat_distribution
 
 
 def get_seats_total(session_year):
     """
-    Set global dict seats_total for number of seats per party and total number
-    of seats. Helper function for extract_commenting/applauding_party.
-    Throws an exception if JSON for session_year does not exist.
+    Sets global dict seats_total for number of seats per party and total number
+    of seats. Make sure the JSON file has the name: 'seats_totalYY.json'.
+    Throws an exception if JSON for session_year does not exist. Returns
+    seats_total after initialization.
     """
-    
     global seats_total
     file_name = f'data/seats_total{session_year}.json'
+    if not os.path.exists(file_name):
+        raise ValueError(f'No JSON input data for session year {session_year} found!')
+        
     with open(file_name, encoding='utf-8') as seat_file:
         seats_total = json.load(seat_file)
     return seats_total
@@ -44,7 +50,8 @@ def get_seats_total(session_year):
 
 def get_list_of_parties(comment_list):
     """
-    Extracts all parties from comment_list and returns set with alphabetically sorted names.
+    Extracts all parties from comment_list (list containing comment dictionaries)
+    and returns set with alphabetically sorted names.
     """
     for comment in comment_list:
         all_parties.add(comment['speaker'])
@@ -73,17 +80,26 @@ def extract_commenting_party(comment):
     containing party. Function returns nested dict with indices [party_from][party_to]
     and value for number of actions each.
     """
-
     global attendance_rate, percentage_participating
     dict_all = get_party_dict()
 
     party_found = False
     
-    # split comment at hyphen in case of several action within one comment
+    # split comment at hyphen in case of several actions within one comment
     sub_actions = comment['comment'].split(' – ')
     
+    # TODO. remove
+    #if 'Gegenruf' in comment['comment']:
+    #    print(comment['comment'], '\r\n')
+    
+    # track previous speaker in case parties address each other in calls
+    is_single_caller = False
+    previous_callers = []
+    
     for sub_action in sub_actions:
-        # seperate single speaker given on left side of ":" as <name> [<party>]: <call>
+        party_addressed = None
+        
+        # separate single speaker given on left side of ":" as <name> [<party>]: <call>
         if ":" in sub_action:
             call_left = sub_action.split(':')[0]
             
@@ -94,18 +110,37 @@ def extract_commenting_party(comment):
                 if ',' in call_left:
                         # print(call_left)
                         pass
-                
-                # all good, meaning this format for sub_action: <name> [<party>]: <call>
             
             # deal with case if extra information is given after [<party>] (usually specifies who single commenter addresses)
             # example format of sub_action: Kai Gehring [BÜNDNIS 90/DIE GRÜNEN], an die AfD gewandt: <call>
-            # TODO: search for party in "caller_left"
             elif '],' in call_left:
                 call_from_to = call_left.split(',')
                 call_left = call_from_to[0]
                 
-                # ignore directed_at; search for party in "call_left" part
+                # evaluate directed_at to determine if call is directed at party other than current speaker
+                # in this case, the call replies to a call by another party
                 directed_at = call_from_to[1]
+                if 'gewandt' in directed_at:
+                    matching = [party for party in all_parties if party in directed_at]
+                    if len(matching) != 1:
+                        print(f'Error: tried to find single party in directed_at part of call, but failed: {comment["comment"]}')
+                    else:
+                        party_addressed = matching[0]
+            
+            is_single_caller = True
+            
+            # TODO: check entire output for correct matching of parties
+            # TODO: test with more data
+            if call_left.startswith("Gegenruf"):
+                if len(previous_callers) == 0:
+                    # Gegenruf zum Redeinhalt, nicht zu vorherigem Kommentar
+                    previous_callers.append(comment['speaker'])
+                #print(call_left, ' - ', previous_callers[-1], ' -\r\n', comment['comment'], '\r\n')
+                party_addressed = previous_callers[-1]
+                    
+            elif call_left.startswith("Weiterer Gegenruf"):
+                #print(call_left, ' - ', previous_callers[-2], ' -\r\n', comment['comment'], '\r\n')
+                party_addressed = previous_callers[-2]
             
             # case of single commenter without party or multiple commenters are not specified
             # examples for call_left: "Bettina Hagedorn, Parl. Staatssekretärin", "Zurufe von der SPD, der LINKEN und dem BÜNDNIS 90/DIE GRÜNEN"
@@ -118,40 +153,56 @@ def extract_commenting_party(comment):
             sub_action = call_left
         
         # no calls, but applause or something similar, can contain single and multiple participants
-        # TODO: search for [party] and just party, maybe subtract "[party]" hits from "party" matches
         else:
             if ',' in sub_action:
                 if ']' in sub_action:
                     #print(sub_action)
                     pass
             
-        # search for party in sub_action
+        # search for party in sub_action for tracking in case call is a reply to a previous call
+        if is_single_caller and len(sub_actions) > 1 and 'Gegenruf' in comment['comment']:
+            single_caller = [party for party in all_parties if party in sub_action]
+            caller = None
+            if len(single_caller) == 0:
+                if "der LINKEN" in sub_action:
+                    caller = "DIE LINKE"
+                elif "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
+                    caller = "BÜNDNIS 90/DIE GRÜNEN"
+            else:
+                caller = single_caller[0]
+            if caller is not None:
+                previous_callers.append(caller)
+            
+        
+        if party_addressed is None:
+            party_addressed = comment['speaker']
+        
+        # create dictionary
         for party in all_parties:
             count_single = sub_action.count(f'[{party}]')
-            dict_all[party][comment['speaker']] += count_single
+            dict_all[party][party_addressed] += count_single
             count_multiple = sub_action.count(party)-count_single
             
             count_multiple *= int(max(seats_total[party]*attendance_rate*percentage_participating, 1))
-            dict_all[party][comment['speaker']] += count_multiple
+            dict_all[party][party_addressed] += count_multiple
             
             if count_single > 0 or count_multiple > 0:
                 party_found = True
         
         # check for "der LINKEN" and "des BÜNDNISSES...",
-        # TODO: use weighted values!!!
         if "der LINKEN" in sub_action:
             party_found = True
-            dict_all["DIE LINKE"][comment['speaker']] += int(max(seats_total["DIE LINKE"]*attendance_rate*percentage_participating, 1))
+            dict_all["DIE LINKE"][party_addressed] += int(max(seats_total["DIE LINKE"]*attendance_rate*percentage_participating, 1))
         if "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
             party_found = True
-            dict_all["BÜNDNIS 90/DIE GRÜNEN"][comment['speaker']] += int(max(seats_total["BÜNDNIS 90/DIE GRÜNEN"]*attendance_rate*percentage_participating, 1))
+            dict_all["BÜNDNIS 90/DIE GRÜNEN"][party_addressed] += int(max(seats_total["BÜNDNIS 90/DIE GRÜNEN"]*attendance_rate*percentage_participating, 1))
         
         # check for "ganzen Hause" or just "Beifall"; ignore "Heiterkeit", "Zurufe" etc.
         if sub_action == "Beifall" or sub_action == "Beifall im ganzen Hause" \
         or sub_action == "Beifall bei Abgeordneten im ganzen Hause":
             party_found = True
             for party_from in dict_all:
-                dict_all[party_from][comment['speaker']] += int(max(seats_total[party_from]*attendance_rate*percentage_participating, 1))
+                dict_all[party_from][party_addressed] += int(max(seats_total[party_from]*attendance_rate*percentage_participating, 1))
                 
         if not party_found:
             pass
@@ -165,7 +216,6 @@ def get_data_matrix_comments(comment_list, relative=False):
     Returns nested dict for comment_list with indices [party_from][party_to] containing number
     of actions each. Sums up values per comment for entire comment_list.
     """
-    
     if not initialized:
         initialize(comment_list)
     
@@ -199,7 +249,6 @@ def extract_applauding_party(comment):
     Returns list of parties applauding in list of string that were part of original comment
     and contain "Beifall". This does not take into account whether the party is given in brackets.
     """
-    
     global all_parties
 
     sub_comments = comment.split(' – ')
@@ -274,7 +323,6 @@ def extract_laughing_party(comment):
     and value for number of laughter each; value is set according to number of participants
     and proportional to size of party.
     """
-    
     global attendance_rate, percentage_participating
     dict_all = get_party_dict()
 
@@ -406,7 +454,6 @@ if __name__ == "__main__":
     comment_list = load_data(False)
     comment_list_filtered = list(filter(has_valid_speaker, comment_list))
     initialize(comment_list_filtered)
-    
     
     dict_laughter = get_data_matrix_laughter(comment_list_filtered, relative=True)
     create_heatmap(dict_laughter, 'Verhältnis von Lachen zu Parteigröße')
