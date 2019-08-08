@@ -85,10 +85,6 @@ def extract_commenting_party(comment):
     # split comment at hyphen in case of several actions within one comment
     sub_actions = comment['comment'].split(' – ')
     
-    # TODO. remove
-    #if 'Gegenruf' in comment['comment']:
-    #    print(comment['comment'], '\r\n')
-    
     # track previous speaker in case parties address each other in calls
     previous_callers = []
     
@@ -119,17 +115,14 @@ def extract_commenting_party(comment):
                 directed_at = call_from_to[1]
                 if 'gewandt' in directed_at:
                     matching = [party for party in all_parties if party in directed_at]
-                    if directed_at == "an die übrigen Fraktionen gewandt":
-                        matching = [party for party in all_parties if party not in call_left]
                     if len(matching) != 1:
-                        print(f'Error: tried to find single party in directed_at part of call, but failed: {comment["comment"]}')
+                        #print(f'Error: tried to find single party in directed_at part of call, but failed: {comment["comment"]}')
+                        pass
                     else:
                         party_addressed = matching[0]
             
             is_single_caller = True
             
-            # TODO: check entire output for correct matching of parties
-            # TODO: test with more data
             if call_left.startswith("Gegenruf"):
                 if len(previous_callers) == 0:
                     # Gegenruf zum Redeinhalt, nicht zu vorherigem Kommentar
