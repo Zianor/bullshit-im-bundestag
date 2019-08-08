@@ -42,3 +42,7 @@ if __name__ == "__main__":
                                           'graphics/comments_absolute.png')
         data_visualization.visualize_distribution_self_other(dict_comment_self, 'Kommentare zur eigenen Partei in %',
                                                              'graphics/comments_self.png')
+        data_visualization.create_heatmap(dict_applause_total, 'absolute Anzahl an Beifall',
+                                          'graphics/applause_absolute.png')
+        data_visualization.create_heatmap(dict_applause, 'Verhältnis Beifall zu Parteigröße',
+                                          'graphics/applause_relative.png')
