@@ -1,6 +1,6 @@
 from xml.etree import ElementTree as ET
 import os
-import pickle
+import json
 
 
 def get_xml_files():
@@ -53,13 +53,14 @@ def get_data():
                 for comments in rede.iter('kommentar'):
                     comment = comments.text.strip('()').replace(u'\xa0', u' ')
                     comment_list.append({'speaker': current_speaker, 'comment': comment, 'date': date})
-    filename = 'data/comments'
+    filename = 'data/comments.json'
     serialization(comment_list, filename)
+    return filename
 
 
 def serialization(comment_list, filename):
-    with open(filename, 'wb') as pickle_file:
-        pickle.dump(comment_list, pickle_file)
+    with open(filename, 'w') as pickle_file:
+        json.dump(comment_list, pickle_file)
 
 
 if __name__ == "__main__":

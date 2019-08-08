@@ -1,7 +1,6 @@
 from xml_parser import get_data
 import json
 import os.path
-import pickle
 
 all_parties = set()
 seat_distribution = {}
@@ -9,6 +8,7 @@ seats_total = {}
 attendance_rate = 0.2
 percentage_participating = 0.2
 initialized = False
+path_comments = ''
 
 
 def get_seat_distribution(session_year):
@@ -400,11 +400,12 @@ def initialize(comment_list):
 
 
 def load_data(renew_data):
-    if renew_data or not os.path.exists('data/comments'):
-        get_data()
+    global path_comments
+    if renew_data or not os.path.exists(path_comments):
+        path_comments = get_data()
     comments = None
-    with open('data/comments', 'rb') as comment_file:
-        comments = pickle.load(comment_file)
+    with open(path_comments, 'r') as comment_file:
+        comments = json.load(comment_file)
     if comments:
         comments = list(filter(has_valid_speaker, comments))
     return comments
