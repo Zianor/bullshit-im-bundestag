@@ -377,7 +377,7 @@ def get_data_matrix_laughter(comment_list, relative=False):
     return dict_laughter
 
 
-def cotains_direct_calls(comment):
+def contains_direct_calls(comment):
     if "Gegenruf" or "gewandt" in comment['comment']:
         return True
     return False
@@ -389,14 +389,87 @@ def extract_addressed_party(comment):
     """
     dict_all = get_party_dict()
 
-    party_found = False
+    previous_callers = []
+    party_addressed = None
     
     # split comment at hyphen in case of several action within one comment
     sub_actions = comment['comment'].split(' – ')
     
     for sub_action in sub_actions:
-        pass
-        # print(f'Error: no party commenting could be found for comment: {sub_action}!')
+        
+        is_single_caller = False
+        is_relevant = False
+        
+        if ":" in sub_action:
+            call_left = sub_action.split(':')[0]
+            is_single_caller = True
+            
+            # case 1: "<speaker> [<party>], an ... gewandt" in given before quote
+            if '],' in call_left:
+                    call_from_to = call_left.split(',')
+                    call_left = call_from_to[0]
+                    directed_at = call_from_to[1]
+                    if 'gewandt' in directed_at:
+                        matching = [party for party in all_parties if party in directed_at]
+                        if len(matching) != 1:
+                            continue
+                        party_addressed = matching[0]
+                        is_relevant = True
+                        
+                        # TODO: check for gewandt, but no right side of call
+            # case 2: "Gegenruf" refering to previous caller
+            elif call_left.startswith("Gegenruf"):
+                if len(previous_callers) == 0:
+                    previous_callers.append(comment['speaker'])
+                party_addressed = previous_callers[-1]
+                is_relevant = True
+            
+            # case 3: consecutive "Gegenruf" refering to original caller
+            elif call_left.startswith("Weiterer Gegenruf"):
+                # more than 2 consecutive calls never occur
+                party_addressed = previous_callers[-2]
+                is_relevant = True
+            
+            sub_action = call_left
+        else:
+            if sub_action.startswith("Zurufe"):
+                single_caller = [party for party in all_parties if party in sub_action]
+                caller = None
+                if len(single_caller) == 0:
+                    if "der LINKEN" in sub_action:
+                        caller = "DIE LINKE"
+                    elif "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
+                        caller = "BÜNDNIS 90/DIE GRÜNEN"
+                else:
+                    caller = single_caller[0]
+                if caller is not None:
+                    previous_callers.append(caller)
+            continue
+        
+        if party_addressed is None:
+            party_addressed = comment['speaker']
+            
+        # extract previously commenting party first
+        if len(sub_actions) > 1 and is_single_caller:
+            single_caller = [party for party in all_parties if party in sub_action]
+            caller = None
+            if len(single_caller) == 0:
+                if "der LINKEN" in sub_action:
+                    caller = "DIE LINKE"
+                elif "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
+                    caller = "BÜNDNIS 90/DIE GRÜNEN"
+            else:
+                caller = single_caller[0]
+            if caller is not None:
+                previous_callers.append(caller)
+            else:
+                continue
+        
+            if is_relevant:
+                if caller == party_addressed:
+                    pass
+                    #print('from', caller, 'to', party_addressed, ':', comment['comment'], '\r\n')
+                dict_all[caller][party_addressed] += 1
         
     return dict_all
 
@@ -407,7 +480,7 @@ def get_data_matrix_direct_calls(comment_list, relative=False):
     comments that address specific parties either by replying to a previous call or by 
     speaking to a party.
     """
-    global initialize
+    global initialized
     
     if not initialized:
         initialize(comment_list)
@@ -417,7 +490,17 @@ def get_data_matrix_direct_calls(comment_list, relative=False):
     dict_direct_comments = get_party_dict()
     
     for comment in comment_list_direct:
-        pass
+        parties_addressed = extract_addressed_party(comment)
+        for party_from in parties_addressed:
+            for party_to in parties_addressed[party_from]:
+                dict_direct_comments[party_from][party_to] += parties_addressed[party_from][party_to]
+    
+    if relative:
+        for party_from in dict_direct_comments:
+            for party_to in dict_direct_comments[party_from]:
+                dict_direct_comments[party_from][party_to] /= seats_total[party_from]
+                
+    return dict_direct_comments
 
 
 def initialize(comment_list):

@@ -3,7 +3,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 
-def create_heatmap(dict_parties, label, filename='none'):
+def create_heatmap(dict_parties, label, filename='none', relative=False):
     """
     Creates heapmap of the given dictionary and labels it. If a filename is given, it will save it, otherwise it will
     show it
@@ -17,7 +17,10 @@ def create_heatmap(dict_parties, label, filename='none'):
 
     sns.set(font_scale=0.8)
 
-    ax = sns.heatmap(df, cmap='Blues', annot=True, fmt='.1f')
+    if relative:
+        ax = sns.heatmap(df, cmap='Blues', annot=True, fmt='.2f')
+    else:
+        ax = sns.heatmap(df, cmap='Blues', annot=True, fmt='.0f')
     ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right")
     plt.tight_layout()
     plt.title(f'{label} von ... für ...\n\n')
