@@ -390,19 +390,19 @@ def extract_addressed_party(comment):
     dict_all = get_party_dict()
 
     previous_callers = []
-    party_addressed = None
     
     # split comment at hyphen in case of several action within one comment
     sub_actions = comment['comment'].split(' – ')
     
     for sub_action in sub_actions:
         
-        is_single_caller = False
+        caller_found = False
         is_relevant = False
+        party_addressed = None
+        is_no_comment = False
         
         if ":" in sub_action:
             call_left = sub_action.split(':')[0]
-            is_single_caller = True
             
             # case 1: "<speaker> [<party>], an ... gewandt" in given before quote
             if '],' in call_left:
@@ -414,7 +414,7 @@ def extract_addressed_party(comment):
                         if len(matching) != 1:
                             continue
                         party_addressed = matching[0]
-                        is_relevant = True
+                    is_relevant = True
                         
                         # TODO: check for gewandt, but no right side of call
             # case 2: "Gegenruf" refering to previous caller
@@ -431,45 +431,62 @@ def extract_addressed_party(comment):
                 is_relevant = True
             
             sub_action = call_left
+        # reply without content given
+        elif sub_action.startswith("Gegenruf"):
+            if len(previous_callers) == 0:
+                previous_callers.append(comment['speaker'])
+            party_addressed = previous_callers[-1]
+            is_relevant = True
         else:
-            if sub_action.startswith("Zurufe"):
-                single_caller = [party for party in all_parties if party in sub_action]
-                caller = None
-                if len(single_caller) == 0:
+            if sub_action.startswith("Zurufe") or sub_action.startswith("Zuruf"):
+                callers = [party for party in all_parties if party in sub_action]
+                if len(callers) == 0:
                     if "der LINKEN" in sub_action:
-                        caller = "DIE LINKE"
-                    elif "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
-                        caller = "BÜNDNIS 90/DIE GRÜNEN"
-                else:
-                    caller = single_caller[0]
-                if caller is not None:
-                    previous_callers.append(caller)
-            continue
+                        callers.append("DIE LINKE")
+                        caller_found = True
+                    if "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
+                        callers.append("BÜNDNIS 90/DIE GRÜNEN")
+                        caller_found = True
+                if len(callers) > 0:
+                    caller_found = True
+                    # set first party listed as previous caller; there is just 1 caller in most cases
+                    previous_callers.append(callers[0])
+            else:
+                is_no_comment = True
         
         if party_addressed is None:
             party_addressed = comment['speaker']
             
         # extract previously commenting party first
-        if len(sub_actions) > 1 and is_single_caller:
-            single_caller = [party for party in all_parties if party in sub_action]
-            caller = None
-            if len(single_caller) == 0:
+        if len(sub_action) > 1 and not is_no_comment \
+            and ("Gegenruf" in comment['comment'] or "gewandt" in comment['comment']):
+            
+            callers = [party for party in all_parties if party in sub_action]
+            if len(callers) == 0:
                 if "der LINKEN" in sub_action:
-                    caller = "DIE LINKE"
-                elif "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
-                    caller = "BÜNDNIS 90/DIE GRÜNEN"
-            else:
-                caller = single_caller[0]
-            if caller is not None:
-                previous_callers.append(caller)
-            else:
+                    callers.append("DIE LINKE")
+                    caller_found = True
+                if "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
+                    callers.append("BÜNDNIS 90/DIE GRÜNEN")
+                    caller_found= True
+            if len(callers) > 0:
+                # assuming the caller listed first is the most relevant one
+                previous_callers.append(callers[0])
+                caller_found = True
+                
+            if not caller_found:
+                # TODO: check if you ever continue
                 continue
-        
+            
             if is_relevant:
-                if caller == party_addressed:
-                    pass
-                    #print('from', caller, 'to', party_addressed, ':', comment['comment'], '\r\n')
-                dict_all[caller][party_addressed] += 1
+                for caller in callers:
+                    #if caller == "DIE LINKE" and party_addressed == "FDP":
+                    #    print(previous_callers, 'from', caller, 'to', party_addressed, ':', comment['comment'], '\r\n')
+                    
+                    # TODO: remove test
+                    
+                    
+                    dict_all[caller][party_addressed] += 1
         
     return dict_all
 
