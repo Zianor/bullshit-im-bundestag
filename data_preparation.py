@@ -53,6 +53,13 @@ def get_party_dict():
     return dict_all
 
 
+def get_factor_multiple(party, is_single_caller):
+    factor_multiple = 1
+    if not is_single_caller:
+        factor_multiple = int(max(seats_total[party]*attendance_rate*percentage_participating, 1))
+    return factor_multiple
+
+
 def extract_commenting_party(comment):
     """
     Input argument is comment dict from comment_list. Comment is reduced to relevant part
@@ -73,48 +80,49 @@ def extract_commenting_party(comment):
     for sub_action in sub_actions:
         is_single_caller = False
         party_addressed = None
+        is_no_comment = False
+        caller_found = False
         
         # separate single speaker given on left side of ":" as <name> [<party>]: <call>
         if ":" in sub_action:
             call_left = sub_action.split(':')[0]
+            is_single_caller = True
             
+            # TODO: remove
             # check if party is really given right before <call>
-            if "]" in call_left[-1]:
+            #if "]" in call_left[-1]:
     
-                # find cases like "Weiterer Gegenruf, des Abg. Johannes Kahrs [SPD]" with speaker on left side of ":", but with "," left in call_left
-                if ',' in call_left:
+            #    # find cases like "Weiterer Gegenruf, des Abg. Johannes Kahrs [SPD]" with speaker on left side of ":", but with "," left in call_left
+            #    if ',' in call_left:
                         # print(call_left)
-                        pass
+            #            pass
             
             # deal with case if extra information is given after [<party>] (usually specifies who single commenter addresses)
             # example format of sub_action: Kai Gehring [BÜNDNIS 90/DIE GRÜNEN], an die AfD gewandt: <call>
-            elif '],' in call_left:
+            if '],' in call_left:
                 call_from_to = call_left.split(',')
                 call_left = call_from_to[0]
                 
                 # evaluate directed_at to determine if call is directed at party other than current speaker
                 # in this case, the call replies to a call by another party
                 directed_at = call_from_to[1]
+                matching = [party for party in all_parties if party in directed_at]
+                if len(matching) == 0:
+                    continue
                 if 'gewandt' in directed_at:
-                    matching = [party for party in all_parties if party in directed_at]
                     if len(matching) != 1:
                         #print(f'Error: tried to find single party in directed_at part of call, but failed: {comment["comment"]}')
-                        pass
+                        continue
                     else:
                         party_addressed = matching[0]
-            
-            is_single_caller = True
-            
-            if call_left.startswith("Gegenruf"):
+                is_single_caller = True
+            elif call_left.startswith("Gegenruf"):
                 if len(previous_callers) == 0:
                     # Gegenruf zum Redeinhalt, nicht zu vorherigem Kommentar
                     previous_callers.append(comment['speaker'])
-                #print(call_left, ' - ', previous_callers[-1], ' -\r\n', comment['comment'], '\r\n')
                 party_addressed = previous_callers[-1]
-                    
+                
             elif call_left.startswith("Weiterer Gegenruf"):
-                #print(call_left, ' - ', previous_callers[-2], ' -\r\n', comment['comment'], '\r\n')
-                # TODO: does not work for more than two consecutive replies, but that has never occurred
                 party_addressed = previous_callers[-2]
             
             # case of single commenter without party or multiple commenters are not specified
@@ -126,39 +134,46 @@ def extract_commenting_party(comment):
                 
             # condense sub_action to relevant part containing caller
             sub_action = call_left
-        
+        # reply without content given
+        elif sub_action.startswith("Gegenruf"):
+            if len(previous_callers) == 0:
+                previous_callers.append(comment['speaker'])
+            party_addressed = previous_callers[-1]
+            is_single_caller = True
         # no calls, but applause or something similar, can contain single and multiple participants
         else:
-            if sub_action.startswith("Zurufe"):
-                single_caller = [party for party in all_parties if party in sub_action]
-                caller = None
-                if len(single_caller) == 0:
+            if sub_action.startswith("Zurufe") or sub_action.startswith("Zuruf"):
+                callers = [party for party in all_parties if party in sub_action]
+                if len(callers) == 0:
                     if "der LINKEN" in sub_action:
-                        caller = "DIE LINKE"
-                    elif "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
-                        caller = "BÜNDNIS 90/DIE GRÜNEN"
-                else:
-                    caller = single_caller[0]
-                if caller is not None:
-                    previous_callers.append(caller)
-            if ',' in sub_action:
-                if ']' in sub_action:
-                    #print(sub_action)
-                    pass
+                        callers.append("DIE LINKE")
+                        caller_found = True
+                    if "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
+                        callers.append("BÜNDNIS 90/DIE GRÜNEN")
+                        caller_found = True
+                if len(callers) > 0:
+                    previous_callers.append(callers[0])
+                    caller_found = True
+                is_single_caller = sub_action.startswith("Zuruf ")
+            else:
+                is_no_comment = True
             
         # search for party in sub_action for tracking in case call is a reply to a previous call
-        if is_single_caller and len(sub_actions) > 1 and 'Gegenruf' in comment['comment']:
-            single_caller = [party for party in all_parties if party in sub_action]
-            caller = None
-            if len(single_caller) == 0:
-                if "der LINKEN" in sub_action:
-                    caller = "DIE LINKE"
-                elif "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
-                    caller = "BÜNDNIS 90/DIE GRÜNEN"
-            else:
-                caller = single_caller[0]
-            if caller is not None:
-                previous_callers.append(caller)
+        if not is_no_comment \
+            and ('Gegenruf' in comment['comment'] or "gewandt" in comment['comment']):
+            
+            callers = [party for party in all_parties if party in sub_action]
+            if "der LINKEN" in sub_action:
+                callers.append("DIE LINKE")
+                caller_found = True
+            if "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
+                callers.append("BÜNDNIS 90/DIE GRÜNEN")
+                caller_found = True
+            if len(callers) > 0:
+                previous_callers.append(callers[0])
+                caller_found = True
+            if not caller_found:
+                continue
             
         
         if party_addressed is None:
@@ -170,7 +185,7 @@ def extract_commenting_party(comment):
             dict_all[party][party_addressed] += count_single
             count_multiple = sub_action.count(party)-count_single
             
-            count_multiple *= int(max(seats_total[party]*attendance_rate*percentage_participating, 1))
+            count_multiple *= get_factor_multiple(party, is_single_caller)
             dict_all[party][party_addressed] += count_multiple
             
             if count_single > 0 or count_multiple > 0:
@@ -179,22 +194,23 @@ def extract_commenting_party(comment):
         # check for "der LINKEN" and "des BÜNDNISSES...",
         if "der LINKEN" in sub_action:
             party_found = True
-            dict_all["DIE LINKE"][party_addressed] += int(max(seats_total["DIE LINKE"]*attendance_rate*percentage_participating, 1))
+            #print(comment['comment'])
+            dict_all["DIE LINKE"][party_addressed] += get_factor_multiple("DIE LINKE", is_single_caller)
         if "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
             party_found = True
-            dict_all["BÜNDNIS 90/DIE GRÜNEN"][party_addressed] += int(max(seats_total["BÜNDNIS 90/DIE GRÜNEN"]*attendance_rate*percentage_participating, 1))
+            dict_all["BÜNDNIS 90/DIE GRÜNEN"][party_addressed] += get_factor_multiple("BÜNDNIS 90/DIE GRÜNEN", is_single_caller)
         
         # check for "ganzen Hause" or just "Beifall"; ignore "Heiterkeit", "Zurufe" etc.
         if sub_action == "Beifall" or sub_action == "Beifall im ganzen Hause" \
         or sub_action == "Beifall bei Abgeordneten im ganzen Hause":
             party_found = True
             for party_from in dict_all:
-                dict_all[party_from][party_addressed] += int(max(seats_total[party_from]*attendance_rate*percentage_participating, 1))
-                
+                dict_all[party_from][party_addressed] += get_factor_multiple(party_from, is_single_caller)
+            
         if not party_found:
             pass
             # print(f'Error: no party commenting could be found for comment: {sub_action}!')
-        
+            
     return dict_all
 
 
@@ -409,6 +425,7 @@ def extract_addressed_party(comment):
                     call_from_to = call_left.split(',')
                     call_left = call_from_to[0]
                     directed_at = call_from_to[1]
+                    
                     if 'gewandt' in directed_at:
                         matching = [party for party in all_parties if party in directed_at]
                         if len(matching) != 1:
@@ -456,36 +473,29 @@ def extract_addressed_party(comment):
         
         if party_addressed is None:
             party_addressed = comment['speaker']
-            
+        
         # extract previously commenting party first
-        if len(sub_action) > 1 and not is_no_comment \
+        if not is_no_comment \
             and ("Gegenruf" in comment['comment'] or "gewandt" in comment['comment']):
-            
+                
             callers = [party for party in all_parties if party in sub_action]
-            if len(callers) == 0:
-                if "der LINKEN" in sub_action:
-                    callers.append("DIE LINKE")
-                    caller_found = True
-                if "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
-                    callers.append("BÜNDNIS 90/DIE GRÜNEN")
-                    caller_found= True
-            if len(callers) > 0:
+            if "der LINKEN" in sub_action:
+                callers.append("DIE LINKE")
+                caller_found = True
+            if "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
+                callers.append("BÜNDNIS 90/DIE GRÜNEN")
+                caller_found = True
+            if len(callers) > 0:     
                 # assuming the caller listed first is the most relevant one
                 previous_callers.append(callers[0])
                 caller_found = True
-                
+            
             if not caller_found:
                 # TODO: check if you ever continue
                 continue
             
             if is_relevant:
                 for caller in callers:
-                    #if caller == "DIE LINKE" and party_addressed == "FDP":
-                    #    print(previous_callers, 'from', caller, 'to', party_addressed, ':', comment['comment'], '\r\n')
-                    
-                    # TODO: remove test
-                    
-                    
                     dict_all[caller][party_addressed] += 1
         
     return dict_all
