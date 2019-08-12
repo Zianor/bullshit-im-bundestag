@@ -267,7 +267,7 @@ def extract_applauding_party(comment):
         
         # check for "der LINKEN" and "des BÜNDNISSES...",
         if "der LINKEN" in sub_comment:
-                matching.append("DIE LINKE")
+            matching.append("DIE LINKE")
         if "des BÜNDNISSES 90/DIE GRÜNEN" in sub_comment:
             matching.append("BÜNDNIS 90/DIE GRÜNEN")
         
