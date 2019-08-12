@@ -115,7 +115,6 @@ def extract_commenting_party(comment):
                         continue
                     else:
                         party_addressed = matching[0]
-                is_single_caller = True
             elif call_left.startswith("Gegenruf"):
                 if len(previous_callers) == 0:
                     # Gegenruf zum Redeinhalt, nicht zu vorherigem Kommentar
@@ -124,6 +123,8 @@ def extract_commenting_party(comment):
                 
             elif call_left.startswith("Weiterer Gegenruf"):
                 party_addressed = previous_callers[-2]
+            elif call_left.startswith("Zurufe"):
+                is_single_caller = False
             
             # case of single commenter without party or multiple commenters are not specified
             # examples for call_left: "Bettina Hagedorn, Parl. Staatssekretärin", "Zurufe von der SPD, der LINKEN und dem BÜNDNIS 90/DIE GRÜNEN"
@@ -194,7 +195,6 @@ def extract_commenting_party(comment):
         # check for "der LINKEN" and "des BÜNDNISSES...",
         if "der LINKEN" in sub_action:
             party_found = True
-            #print(comment['comment'])
             dict_all["DIE LINKE"][party_addressed] += get_factor_multiple("DIE LINKE", is_single_caller)
         if "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
             party_found = True
