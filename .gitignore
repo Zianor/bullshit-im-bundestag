@@ -6,3 +6,4 @@ Bericht/*.pdf
 Bericht/*.toc
 Bericht/*.gz
 Bericht/doc/*.aux
+data/comments.json
