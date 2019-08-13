@@ -72,7 +72,7 @@ def get_factor_multiple(party, is_single_caller):
     return factor_multiple
 
 
-def extract_commenting_party(comment):
+def extract_commenting_party(comment, weighted):
     """
     Input argument is comment dict from comment_list. Comment is reduced to relevant part
     containing party. Function returns nested dict with indices [party_from][party_to]
@@ -178,7 +178,6 @@ def extract_commenting_party(comment):
                 caller_found = True
             if not caller_found:
                 continue
-            
         
         if party_addressed is None:
             party_addressed = comment['speaker']
@@ -188,8 +187,8 @@ def extract_commenting_party(comment):
             count_single = sub_action.count(f'[{party}]')
             dict_all[party][party_addressed] += count_single
             count_multiple = sub_action.count(party)-count_single
-            
-            count_multiple *= get_factor_multiple(party, is_single_caller)
+            if weighted:
+                count_multiple *= get_factor_multiple(party, is_single_caller)
             dict_all[party][party_addressed] += count_multiple
             
             if count_single > 0 or count_multiple > 0:
@@ -198,17 +197,26 @@ def extract_commenting_party(comment):
         # check for "der LINKEN" and "des BÜNDNISSES..."
         if "der LINKEN" in sub_action:
             party_found = True
-            dict_all["DIE LINKE"][party_addressed] += get_factor_multiple("DIE LINKE", is_single_caller)
+            if weighted:
+                dict_all["DIE LINKE"][party_addressed] += get_factor_multiple("DIE LINKE", is_single_caller)
+            else:
+                dict_all["DIE LINKE"][party_addressed] += 1
         if "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
             party_found = True
-            dict_all["BÜNDNIS 90/DIE GRÜNEN"][party_addressed] += get_factor_multiple("BÜNDNIS 90/DIE GRÜNEN", is_single_caller)
+            if weighted:
+                dict_all["BÜNDNIS 90/DIE GRÜNEN"][party_addressed] += get_factor_multiple("BÜNDNIS 90/DIE GRÜNEN", is_single_caller)
+            else:
+                dict_all["BÜNDNIS 90/DIE GRÜNEN"][party_addressed] += 1
         
         # check for "ganzen Hause" or just "Beifall"; ignore "Heiterkeit" etc.
         if sub_action == "Beifall" or sub_action == "Beifall im ganzen Hause" \
         or sub_action == "Beifall bei Abgeordneten im ganzen Hause":
             party_found = True
             for party_from in dict_all:
-                dict_all[party_from][party_addressed] += get_factor_multiple(party_from, is_single_caller)
+                if weighted:
+                    dict_all[party_from][party_addressed] += get_factor_multiple(party_from, is_single_caller)
+                else:
+                    dict_all[party_from][party_addressed] += 1
             
         if not party_found:
             pass
@@ -217,7 +225,7 @@ def extract_commenting_party(comment):
     return dict_all
 
 
-def get_data_matrix_comments(comment_list, relative=False):
+def get_data_matrix_comments(comment_list, relative=False, weighted=False):
     """
     Returns nested dict for comment_list with indices [party_from][party_to] containing number
     of actions each. Sums up values per comment for entire comment_list.
@@ -230,7 +238,7 @@ def get_data_matrix_comments(comment_list, relative=False):
     dict_comments = get_party_dict()
     
     for comment in comment_list:
-        parties_commenting = extract_commenting_party(comment)
+        parties_commenting = extract_commenting_party(comment, weighted)
         for party_from in parties_commenting:
             for party_to in parties_commenting[party_from]:
                 dict_comments[party_from][party_to] += parties_commenting[party_from][party_to]
@@ -249,7 +257,7 @@ def contains_applause(comment):
     return False
 
 
-def extract_applauding_party(comment):
+def extract_applauding_party(comment, weighted):
     """
     Returns list of parties applauding in part of original comment containing "Beifall". 
     This does not take into account whether the party is given in brackets, e.g. whether there are single
@@ -292,7 +300,8 @@ def extract_applauding_party(comment):
             count_single = sub_action.count(f'[{party}]')
             dict_all[party][comment['speaker']] += count_single
             count_multiple = sub_action.count(party)-count_single
-            count_multiple *= get_factor_multiple(party, False)
+            if weighted:
+                count_multiple *= get_factor_multiple(party, False)
             dict_all[party][comment['speaker']] += count_multiple
             
             if count_single > 0 or count_multiple > 0:
@@ -301,16 +310,25 @@ def extract_applauding_party(comment):
         # check for "der LINKEN" and "des BÜNDNISSES..."
         if "der LINKEN" in sub_action:
             party_found = True
-            dict_all["DIE LINKE"][comment['speaker']] += get_factor_multiple("DIE LINKE", False)
+            if weighted:
+                dict_all["DIE LINKE"][comment['speaker']] += get_factor_multiple("DIE LINKE", False)
+            else:
+                dict_all["DIE LINKE"][comment['speaker']] += 1
         if "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
             party_found = True
-            dict_all["BÜNDNIS 90/DIE GRÜNEN"][comment['speaker']] += get_factor_multiple("BÜNDNIS 90/DIE GRÜNEN", False)
+            if weighted:
+                dict_all["BÜNDNIS 90/DIE GRÜNEN"][comment['speaker']] += get_factor_multiple("BÜNDNIS 90/DIE GRÜNEN", False)
+            else:
+                dict_all["BÜNDNIS 90/DIE GRÜNEN"][comment['speaker']] += 1
         
         # check for "im ganzen Hause" or just "Beifall"
         if sub_action == "Beifall" or "Beifall im ganzen Hause" in sub_action or "Beifall bei Abgeordneten im ganzen Hause" in sub_action:
             party_found = True
             for party_from in all_parties:
-                dict_all[party_from][comment['speaker']] += get_factor_multiple(party_from, False)
+                if weighted:
+                    dict_all[party_from][comment['speaker']] += get_factor_multiple(party_from, False)
+                else:
+                    dict_all[party_from][comment['speaker']] += 1
         
         if not party_found:
             # print(f'Error: no party applauding could be found for comment: {sub_action}!')
@@ -319,7 +337,7 @@ def extract_applauding_party(comment):
     return dict_all
 
 
-def get_data_matrix_applause(comment_list, relative=False):
+def get_data_matrix_applause(comment_list, relative=False, weighted=False):
     """
     Returns nested dict with indices [party_from][party_to] containing number of applause given
     each for entire comment_list.
@@ -335,7 +353,7 @@ def get_data_matrix_applause(comment_list, relative=False):
     dict_applause = get_party_dict()
     
     for comment in comment_list_applause:
-        parties_applauding = extract_applauding_party(comment)
+        parties_applauding = extract_applauding_party(comment, weighted)
         for party_from in parties_applauding:
             for party_to in parties_applauding[party_from]:
                 dict_applause[party_from][party_to] += parties_applauding[party_from][party_to]
@@ -354,7 +372,7 @@ def contains_laughter(comment):
     return False
 
 
-def extract_laughing_party(comment):
+def extract_laughing_party(comment, weighted):
     """
     Input argument is comment dict from comment_list. Comment is reduced to relevant part
     containing laughter. Function returns nested dict with indices [party_from][party_to]
@@ -383,7 +401,8 @@ def extract_laughing_party(comment):
             count_single = sub_action.count(f'[{party}]')
             dict_all[party][comment['speaker']] += count_single
             count_multiple = sub_action.count(party)-count_single
-            count_multiple *= get_factor_multiple(party, False)
+            if weighted:
+                count_multiple *= get_factor_multiple(party, False)
             dict_all[party][comment['speaker']] += count_multiple
             
             if count_single > 0 or count_multiple > 0:
@@ -392,10 +411,16 @@ def extract_laughing_party(comment):
         # check for "der LINKEN" and "des BÜNDNISSES..."
         if "der LINKEN" in sub_action:
             party_found = True
-            dict_all["DIE LINKE"][comment['speaker']] += get_factor_multiple("DIE LINKE", False)
+            if weighted:
+                dict_all["DIE LINKE"][comment['speaker']] += get_factor_multiple("DIE LINKE", False)
+            else:
+                dict_all["DIE LINKE"][comment['speaker']] += 1
         if "des BÜNDNISSES 90/DIE GRÜNEN" in sub_action:
             party_found = True
-            dict_all["BÜNDNIS 90/DIE GRÜNEN"][comment['speaker']] += get_factor_multiple("BÜNDNIS 90/DIE GRÜNEN", False)
+            if weighted:
+                dict_all["BÜNDNIS 90/DIE GRÜNEN"][comment['speaker']] += get_factor_multiple("BÜNDNIS 90/DIE GRÜNEN", False)
+            else:
+                dict_all["BÜNDNIS 90/DIE GRÜNEN"][comment['speaker']] += 1
         
         if not party_found:
             pass
@@ -404,7 +429,7 @@ def extract_laughing_party(comment):
     return dict_all
 
 
-def get_data_matrix_laughter(comment_list, relative=False):
+def get_data_matrix_laughter(comment_list, relative=False, weighted=False):
     """
     Returns nested dict with indices [party_from][party_to] containing number of laughter
     or ratio of number of laughter to number of seats for entire comment_list.
@@ -421,7 +446,7 @@ def get_data_matrix_laughter(comment_list, relative=False):
     dict_laughter = get_party_dict()
     
     for comment in comment_list_laughter:
-        parties_laughing = extract_laughing_party(comment)
+        parties_laughing = extract_laughing_party(comment, weighted)
         for party_from in parties_laughing:
             for party_to in parties_laughing[party_from]:
                 dict_laughter[party_from][party_to] += parties_laughing[party_from][party_to]
@@ -438,6 +463,7 @@ def contains_direct_calls(comment):
     if "Gegenruf" or "gewandt" in comment['comment']:
         return True
     return False
+
 
 def extract_addressed_party(comment):
     """
